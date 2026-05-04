@@ -50,6 +50,11 @@ target_link_libraries(${PROJECT_NAME}
 
 set_project_warnings(${PROJECT_NAME})
 
+if(${PROJECT_NAME}_ENABLE_SANITIZERS)
+  target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+  target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address,undefined)
+endif()
+
 # ── Standalone CLI (version banner) ──────────────────────────────────────────
 add_executable(${PROJECT_NAME}_cli src/main.cpp)
 target_compile_features(${PROJECT_NAME}_cli PRIVATE cxx_std_20)
@@ -59,6 +64,12 @@ target_link_libraries(${PROJECT_NAME}_cli PRIVATE ${PROJECT_NAME}::${PROJECT_NAM
 if(${PROJECT_NAME}_BUILD_TESTING)
   enable_testing()
   add_subdirectory(test)
+  if(${PROJECT_NAME}_ENABLE_SANITIZERS)
+    foreach(_test_target ${PROJECT_NAME}_tests ${PROJECT_NAME}_integration_tests)
+      target_compile_options(${_test_target} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+      target_link_options(${_test_target} PRIVATE -fsanitize=address,undefined)
+    endforeach()
+  endif()
 endif()
 
 if(${PROJECT_NAME}_ENABLE_DOXYGEN)

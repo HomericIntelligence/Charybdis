@@ -34,7 +34,7 @@ Charybdis against a mesh that carries sensitive workloads.
 git clone https://github.com/HomericIntelligence/ProjectCharybdis.git
 cd ProjectCharybdis
 
-# Activate the Pixi environment
+# Activate the Pixi environment (installs CMake, Ninja, clang-tools, gcovr)
 pixi shell
 
 # Install Conan deps, configure, and build

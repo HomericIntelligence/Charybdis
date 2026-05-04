@@ -70,8 +70,11 @@ FROM ubuntu:24.04 AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -r -s /bin/false charybdis
 
 COPY --from=builder /install/bin/ProjectCharybdis /usr/local/bin/charybdis
+
+USER charybdis
 
 ENTRYPOINT ["/usr/local/bin/charybdis"]
