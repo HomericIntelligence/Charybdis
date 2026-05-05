@@ -3,6 +3,7 @@
 #include <httplib.h>
 #include <iostream>
 #include <regex>
+#include <stdexcept>
 
 namespace projectcharybdis {
 
@@ -12,7 +13,20 @@ HttpTestClient::HttpTestClient(const std::string& base_url) {
   std::smatch match;
   if (std::regex_match(base_url, match, url_re)) {
     host_ = match[1].str();
-    port_ = std::stoi(match[2].str());
+    const std::string port_str = match[2].str();
+    try {
+      const int parsed = std::stoi(port_str);
+      if (parsed < 0 || parsed > 65535) {
+        throw std::invalid_argument("port out of range");
+      }
+      port_ = parsed;
+    } catch (const std::out_of_range&) {
+      throw std::invalid_argument("Invalid port in URL '" + base_url + "': '" + port_str +
+                                  "' is not in range [0, 65535]");
+    } catch (const std::invalid_argument&) {
+      throw std::invalid_argument("Invalid port in URL '" + base_url + "': '" + port_str +
+                                  "' is not in range [0, 65535]");
+    }
   } else {
     host_ = "localhost";
     port_ = 8080;

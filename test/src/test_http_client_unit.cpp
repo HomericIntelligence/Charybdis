@@ -39,6 +39,29 @@ TEST(HttpTestClientUnit, HttpsUrlParsing) {
   EXPECT_FALSE(client.is_healthy());
 }
 
+// ── Port validation ───────────────────────────────────────────────────────────
+
+TEST(HttpTestClientPortValidation, PortAtLowerBound) {
+  // Port 0 is valid (OS assigns ephemeral port on bind); no throw on construction.
+  EXPECT_NO_THROW({ HttpTestClient client("http://127.0.0.1:0"); });
+}
+
+TEST(HttpTestClientPortValidation, PortAtUpperBound) {
+  EXPECT_NO_THROW({ HttpTestClient client("http://127.0.0.1:65535"); });
+}
+
+TEST(HttpTestClientPortValidation, PortJustAboveUpperBound) {
+  EXPECT_THROW({ HttpTestClient client("http://127.0.0.1:65536"); }, std::invalid_argument);
+}
+
+TEST(HttpTestClientPortValidation, PortFarOutOfRange) {
+  EXPECT_THROW({ HttpTestClient client("http://127.0.0.1:99999"); }, std::invalid_argument);
+}
+
+TEST(HttpTestClientPortValidation, PortOverflowsInt) {
+  EXPECT_THROW({ HttpTestClient client("http://127.0.0.1:2200000000"); }, std::invalid_argument);
+}
+
 // ── Connection-failure paths (port 1 is always refused) ───────────────────────
 
 class HttpTestClientOffline : public ::testing::Test {
