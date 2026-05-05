@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-using namespace projectcharybdis;
+namespace projectcharybdis {
 
 class PayloadFuzzingTest : public ::testing::Test {
  protected:
@@ -123,3 +123,5 @@ TEST_F(PayloadFuzzingTest, E15_ExtraUnknownFields) {
 
   EXPECT_TRUE(client_->is_healthy());
 }
+
+}  // namespace projectcharybdis

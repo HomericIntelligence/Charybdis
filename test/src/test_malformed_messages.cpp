@@ -13,7 +13,7 @@
 
 #include <gtest/gtest.h>
 
-using namespace projectcharybdis;
+namespace projectcharybdis {
 
 class MalformedMessageTest : public ::testing::Test {
  protected:
@@ -68,3 +68,5 @@ TEST_F(MalformedMessageTest, WrongContentType) {
   EXPECT_NE(status, 500);
   EXPECT_TRUE(client_->is_healthy());
 }
+
+}  // namespace projectcharybdis

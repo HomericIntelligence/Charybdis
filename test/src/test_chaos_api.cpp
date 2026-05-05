@@ -10,7 +10,7 @@
 
 #include <gtest/gtest.h>
 
-using namespace projectcharybdis;
+namespace projectcharybdis {
 
 class ChaosApiTest : public ::testing::Test {
  protected:
@@ -92,3 +92,5 @@ TEST_F(ChaosApiTest, E04_RemoveFault) {
     EXPECT_NE(f.value("id", ""), fault_id) << "Fault should have been removed";
   }
 }
+
+}  // namespace projectcharybdis
