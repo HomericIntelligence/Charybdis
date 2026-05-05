@@ -1,0 +1,51 @@
+name: Conan Install
+description: Detect Conan profile and install dependencies for a given build type and compiler
+
+inputs:
+  build_type:
+    description: CMake/Conan build type (lowercase, e.g. debug or release)
+    required: true
+  compiler:
+    description: Compiler to use (gcc or clang)
+    required: false
+    default: gcc
+  output_folder:
+    description: Output folder for conan install (e.g. build/debug)
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Detect Conan profile
+      shell: bash
+      run: conan profile detect --force
+
+    - name: Install Conan dependencies
+      shell: bash
+      env:
+        BUILD_TYPE: ${{ inputs.build_type }}
+        COMPILER: ${{ inputs.compiler }}
+        OUTPUT_FOLDER: ${{ inputs.output_folder }}
+      run: |
+        BUILD_TYPE_CAP=$(echo "${BUILD_TYPE}" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
+        FOLDER="${OUTPUT_FOLDER:-build/${BUILD_TYPE}}"
+        if [ "${COMPILER}" = "clang" ]; then
+          CC=clang CXX=clang++ conan install . \
+            --output-folder="${FOLDER}" \
+            --build=missing \
+            -s build_type="${BUILD_TYPE_CAP}" \
+            -s compiler=clang \
+            -s compiler.version=18 \
+            -s compiler.libcxx=libstdc++11 \
+            -s compiler.cppstd=20
+        else
+          conan install . \
+            --output-folder="${FOLDER}" \
+            --build=missing \
+            -s build_type="${BUILD_TYPE_CAP}" \
+            -s compiler=gcc \
+            -s compiler.version=14 \
+            -s compiler.libcxx=libstdc++11 \
+            -s compiler.cppstd=20
+        fi

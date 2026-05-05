@@ -27,19 +27,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build clang clang-tidy python3-pip
           pip3 install --user conan
-      - name: Configure Conan
-        run: conan profile detect --force
       - name: Install Conan dependencies
-        run: |
-          CC=clang CXX=clang++ conan install . \
-            --output-folder=build/debug \
-            --lockfile=conan.lock \
-            --build=missing \
-            -s build_type=Debug \
-            -s compiler=clang \
-            -s compiler.version=18 \
-            -s compiler.libcxx=libstdc++11 \
-            -s compiler.cppstd=20
+        uses: ./.github/actions/conan-install
+        with:
+          build_type: debug
+          compiler: clang
       - name: Configure
         run: CC=clang CXX=clang++ cmake --preset debug -DProjectCharybdis_ENABLE_CLANG_TIDY=ON
       - name: Build

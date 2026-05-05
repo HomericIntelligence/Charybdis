@@ -28,35 +28,11 @@ jobs:
             sudo apt-get install -y clang
           fi
           pip3 install --user conan
-      - name: Configure Conan
-        run: conan profile detect --force
       - name: Install Conan dependencies
-        env:
-          COMPILER: ${{ matrix.compiler }}
-          BUILD_TYPE: ${{ matrix.build_type }}
-        run: |
-          BUILD_TYPE_CAP=$(echo "${BUILD_TYPE}" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
-          if [ "${COMPILER}" = "clang" ]; then
-            CC=clang CXX=clang++ conan install . \
-              --output-folder="build/${BUILD_TYPE}" \
-              --lockfile=conan.lock \
-              --build=missing \
-              -s build_type="${BUILD_TYPE_CAP}" \
-              -s compiler=clang \
-              -s compiler.version=18 \
-              -s compiler.libcxx=libstdc++11 \
-              -s compiler.cppstd=20
-          else
-            conan install . \
-              --output-folder="build/${BUILD_TYPE}" \
-              --lockfile=conan.lock \
-              --build=missing \
-              -s build_type="${BUILD_TYPE_CAP}" \
-              -s compiler=gcc \
-              -s compiler.version=14 \
-              -s compiler.libcxx=libstdc++11 \
-              -s compiler.cppstd=20
-          fi
+        uses: ./.github/actions/conan-install
+        with:
+          build_type: ${{ matrix.build_type }}
+          compiler: ${{ matrix.compiler }}
       - name: Configure
         env:
           COMPILER: ${{ matrix.compiler }}
