@@ -48,9 +48,7 @@ TEST_F(ProtocolCorrectnessTest, C10_IdempotentStreamCreation) {
                                                   {"owner", "e2e"},
                                                   {"role", "member"}});
   ASSERT_GE(s2, 200);
-  std::string agent_id = agent.contains("id")
-                             ? agent.value("id", "")
-                             : agent.value("agent", nlohmann::json{}).value("id", "");
+  std::string agent_id = extract_agent_id(agent);
 
   // Create task — exercises NATS publish to hi.myrmidon.hello.*
   auto [s3, task] =
@@ -76,9 +74,7 @@ TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
                                                   {"tags", nlohmann::json::array()},
                                                   {"owner", "e2e"},
                                                   {"role", "member"}});
-  std::string agent_id = agent.contains("id")
-                             ? agent.value("id", "")
-                             : agent.value("agent", nlohmann::json{}).value("id", "");
+  std::string agent_id = extract_agent_id(agent);
 
   auto [s3, task_resp] =
       client_->post("/v1/teams/" + team_id + "/tasks", {{"subject", "State test"},
