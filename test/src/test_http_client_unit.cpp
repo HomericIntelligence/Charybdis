@@ -110,6 +110,27 @@ class MockServer {
       res.set_content(R"({"deleted":true})", "application/json");
     });
 
+    svr_.Get("/v1/oversized", [](const httplib::Request& /*req*/, httplib::Response& res) {
+      std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
+      res.set_content(big, "text/plain");
+    });
+
+    svr_.Post("/v1/oversized-echo", [](const httplib::Request& /*req*/, httplib::Response& res) {
+      std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
+      res.set_content(big, "text/plain");
+    });
+
+    svr_.Delete("/v1/oversized", [](const httplib::Request& /*req*/, httplib::Response& res) {
+      std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
+      res.set_content(big, "text/plain");
+    });
+
+    svr_.Get("/v1/boundary", [](const httplib::Request& /*req*/, httplib::Response& res) {
+      // Exactly at the limit — not rejected
+      std::string exact(HttpTestClient::kMaxBodyBytes, 'x');
+      res.set_content(exact, "text/plain");
+    });
+
     thread_ = std::thread([this]() { svr_.listen_after_bind(); });
 
     // Wait until the server is actually accepting connections
@@ -179,6 +200,33 @@ TEST_F(HttpTestClientOnline, DelParsesJsonResponse) {
   auto [status, body] = client_->del("/v1/item");
   EXPECT_EQ(status, 200);
   EXPECT_TRUE(body.value("deleted", false));
+}
+
+TEST_F(HttpTestClientOnline, GetRejectsOversizedBody) {
+  auto [status, body] = client_->get("/v1/oversized");
+  EXPECT_EQ(body.value("error", ""), "response_too_large");
+}
+
+TEST_F(HttpTestClientOnline, PostRejectsOversizedBody) {
+  auto [status, body] = client_->post("/v1/oversized-echo", {{"x", 1}});
+  EXPECT_EQ(body.value("error", ""), "response_too_large");
+}
+
+TEST_F(HttpTestClientOnline, PostRawRejectsOversizedBody) {
+  auto [status, body] = client_->post_raw("/v1/oversized-echo", R"({"x":1})", "application/json");
+  EXPECT_EQ(body.value("error", ""), "response_too_large");
+}
+
+TEST_F(HttpTestClientOnline, DelRejectsOversizedBody) {
+  auto [status, body] = client_->del("/v1/oversized");
+  EXPECT_EQ(body.value("error", ""), "response_too_large");
+}
+
+TEST_F(HttpTestClientOnline, BoundaryBodyNotRejected) {
+  // Exactly kMaxBodyBytes — must not trigger the size guard
+  auto [status, body] = client_->get("/v1/boundary");
+  EXPECT_EQ(status, 200);
+  EXPECT_FALSE(body.value("error", "").find("response_too_large") != std::string::npos);
 }
 
 }  // namespace projectcharybdis

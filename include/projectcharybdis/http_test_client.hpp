@@ -9,6 +9,8 @@ namespace projectcharybdis {
 /// Wraps cpp-httplib for REST API interactions with Agamemnon.
 class HttpTestClient {
  public:
+  static constexpr std::size_t kMaxBodyBytes = 10 * 1024 * 1024;  // 10 MB
+
   explicit HttpTestClient(const std::string& base_url = "http://localhost:8080");
 
   /// GET request, returns {status_code, body_json}
