@@ -26,7 +26,8 @@ add_executable(${PROJECT_NAME}_integration_tests
     src/test_chaos_api.cpp
     src/test_payload_fuzzing.cpp
     src/test_malformed_messages.cpp
-    src/test_protocol_correctness.cpp)
+    src/test_protocol_correctness.cpp
+    src/test_chaos_resilience.cpp)
 
 target_compile_features(${PROJECT_NAME}_integration_tests PRIVATE cxx_std_20)
 set_target_properties(${PROJECT_NAME}_integration_tests PROPERTIES CXX_EXTENSIONS OFF)
