@@ -14,6 +14,7 @@ if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
 endif()
 
 include(cmake/StandardSettings.cmake)
+include(cmake/Sanitizers.cmake)
 include(cmake/Coverage.cmake)
 include(cmake/CompilerWarnings.cmake)
 include(cmake/StaticAnalyzers.cmake)

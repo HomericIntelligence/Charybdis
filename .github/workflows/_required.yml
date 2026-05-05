@@ -2,7 +2,7 @@ name: Required Checks
 
 on:
   workflow_run:
-    workflows: ["Build and Test", "Static Analysis", "Code Coverage", "CodeQL SAST"]
+    workflows: ["Build and Test", "Static Analysis", "Code Coverage", "CodeQL SAST", "Sanitizers"]
     types: [completed]
   pull_request:
     branches: [main]
@@ -124,6 +124,27 @@ jobs:
       - name: Skip (not triggered by this workflow)
         if: github.event_name != 'workflow_run'
         run: echo "Not a workflow_run event — pass (actual work done by CodeQL SAST workflow)"
+
+  sanitizers:
+    name: sanitizers
+    runs-on: ubuntu-24.04
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow.name == 'Sanitizers'
+    steps:
+      - name: Check Sanitizers result
+        if: github.event_name == 'workflow_run'
+        env:
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          if [ "${CONCLUSION}" != "success" ]; then
+            echo "Sanitizers workflow failed with: ${CONCLUSION}"
+            exit 1
+          fi
+          echo "Sanitizers passed"
+      - name: Skip (not triggered by this workflow)
+        if: github.event_name != 'workflow_run'
+        run: echo "Not a workflow_run event — pass (actual work done by Sanitizers workflow)"
 
   # ---------------------------------------------------------------------------
   # Independent jobs: run directly on push/pull_request

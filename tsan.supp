@@ -1,0 +1,2 @@
+# ThreadSanitizer suppression file
+# Add suppression entries here for known false positives (e.g. moodycamel lock-free queues).

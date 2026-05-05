@@ -18,7 +18,19 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "ProjectCharybdis_BUILD_TESTING": "ON",
-        "ProjectCharybdis_ENABLE_SANITIZERS": "ON"
+        "ProjectCharybdis_ENABLE_SANITIZERS": "ON",
+        "ProjectCharybdis_SANITIZER": "asan_ubsan"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "TSan",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ProjectCharybdis_BUILD_TESTING": "ON",
+        "ProjectCharybdis_ENABLE_SANITIZERS": "ON",
+        "ProjectCharybdis_SANITIZER": "tsan"
       }
     },
     {
@@ -49,12 +61,14 @@
   ],
   "buildPresets": [
     {"name": "debug", "configurePreset": "debug"},
+    {"name": "tsan", "configurePreset": "tsan"},
     {"name": "release", "configurePreset": "release"},
     {"name": "coverage", "configurePreset": "coverage"},
     {"name": "ci", "configurePreset": "ci"}
   ],
   "testPresets": [
     {"name": "debug", "configurePreset": "debug", "output": {"outputOnFailure": true}},
+    {"name": "tsan", "configurePreset": "tsan", "output": {"outputOnFailure": true}, "execution": {"timeout": 600}},
     {"name": "release", "configurePreset": "release", "output": {"outputOnFailure": true}},
     {"name": "coverage", "configurePreset": "coverage", "output": {"outputOnFailure": true}},
     {"name": "ci", "configurePreset": "ci", "output": {"outputOnFailure": true}}

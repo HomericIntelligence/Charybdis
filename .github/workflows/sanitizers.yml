@@ -1,0 +1,53 @@
+name: Sanitizers
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sanitizers:
+    name: ${{ matrix.sanitizer }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [asan_ubsan, tsan]
+    env:
+      ASAN_OPTIONS: detect_leaks=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+      TSAN_OPTIONS: suppressions=tsan.supp:second_deadlock_stack=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build clang python3-pip
+          pip3 install --user conan
+      - name: Configure Conan
+        run: conan profile detect --force
+      - name: Install Conan dependencies
+        env:
+          SANITIZER: ${{ matrix.sanitizer }}
+        run: |
+          CC=clang CXX=clang++ conan install . \
+            --output-folder="build/${SANITIZER}" \
+            --build=missing \
+            -s build_type=Debug \
+            -s compiler=clang \
+            -s compiler.version=18 \
+            -s compiler.libcxx=libstdc++11 \
+            -s compiler.cppstd=20
+      - name: Configure
+        env:
+          SANITIZER: ${{ matrix.sanitizer }}
+        run: CC=clang CXX=clang++ cmake --preset "${SANITIZER}"
+      - name: Build
+        env:
+          SANITIZER: ${{ matrix.sanitizer }}
+        run: cmake --build --preset "${SANITIZER}"
+      - name: Test
+        env:
+          SANITIZER: ${{ matrix.sanitizer }}
+        run: ctest --preset "${SANITIZER}"
