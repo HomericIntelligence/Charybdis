@@ -39,6 +39,7 @@ jobs:
           if [ "${COMPILER}" = "clang" ]; then
             CC=clang CXX=clang++ conan install . \
               --output-folder="build/${BUILD_TYPE}" \
+              --lockfile=conan.lock \
               --build=missing \
               -s build_type="${BUILD_TYPE_CAP}" \
               -s compiler=clang \
@@ -48,6 +49,7 @@ jobs:
           else
             conan install . \
               --output-folder="build/${BUILD_TYPE}" \
+              --lockfile=conan.lock \
               --build=missing \
               -s build_type="${BUILD_TYPE_CAP}" \
               -s compiler=gcc \

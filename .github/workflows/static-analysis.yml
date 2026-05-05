@@ -33,6 +33,7 @@ jobs:
         run: |
           CC=clang CXX=clang++ conan install . \
             --output-folder=build/debug \
+            --lockfile=conan.lock \
             --build=missing \
             -s build_type=Debug \
             -s compiler=clang \
