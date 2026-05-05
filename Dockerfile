@@ -41,3 +41,15 @@ RUN cmake -B build -G Ninja \
 
 # Run tests as part of the build to validate.
 RUN ctest --test-dir build --output-on-failure
+
+RUN cmake --install build --prefix /install
+
+FROM ubuntu:24.04 AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /install/bin/ProjectCharybdis /usr/local/bin/ProjectCharybdis
+
+ENTRYPOINT ["/usr/local/bin/ProjectCharybdis"]
