@@ -2,17 +2,6 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "schedule": ["before 5am on Monday"],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "fileMatch": ["CMakeLists\\.txt$"],
-      "matchStrings": [
-        "FetchContent_Declare\\([\\s\\S]*?GIT_REPOSITORY\\s+https://github\\.com/(?<depName>[^/]+/[^.]+)\\.git\\s+GIT_TAG\\s+(?<currentValue>v?[\\d.]+)"
-      ],
-      "datasourceTemplate": "github-tags",
-      "versioningTemplate": "semver"
-    }
-  ],
   "packageRules": [
     {
       "matchManagers": ["conan"],
