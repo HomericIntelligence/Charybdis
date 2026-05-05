@@ -20,6 +20,11 @@ include(cmake/StaticAnalyzers.cmake)
 include(cmake/Doxygen.cmake)
 include(cmake/SourcesAndHeaders.cmake)
 
+configure_file(
+  include/projectcharybdis/version.hpp.in
+  ${PROJECT_BINARY_DIR}/include/projectcharybdis/version.hpp
+  @ONLY)
+
 find_package(httplib REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
@@ -32,6 +37,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_EXTENSIONS OFF)
 target_include_directories(
   ${PROJECT_NAME}
   PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+         $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
          $<INSTALL_INTERFACE:include>
   PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
