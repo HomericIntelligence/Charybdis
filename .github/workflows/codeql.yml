@@ -40,7 +40,7 @@ jobs:
         run: conan install . --output-folder=build/ci --build=missing -s build_type=Release
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: cpp
           queries: security-extended,security-and-quality
@@ -51,12 +51,12 @@ jobs:
           cmake --build --preset ci
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: /language:cpp
 
       - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         continue-on-error: true
         with:
           sarif_file: results.sarif
