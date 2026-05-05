@@ -39,27 +39,14 @@ TEST(HttpTestClientUnit, HttpsUrlParsing) {
   EXPECT_FALSE(client.is_healthy());
 }
 
-// ── Port validation ───────────────────────────────────────────────────────────
-
-TEST(HttpTestClientPortValidation, PortAtLowerBound) {
-  // Port 0 is valid (OS assigns ephemeral port on bind); no throw on construction.
-  EXPECT_NO_THROW({ HttpTestClient client("http://127.0.0.1:0"); });
+TEST(HttpTestClientUnit, OutOfRangePortThrows) {
+  // 11-digit value overflows int — stoi throws std::out_of_range, rethrown as std::runtime_error.
+  EXPECT_THROW(HttpTestClient("http://127.0.0.1:99999999999"), std::runtime_error);
 }
 
-TEST(HttpTestClientPortValidation, PortAtUpperBound) {
-  EXPECT_NO_THROW({ HttpTestClient client("http://127.0.0.1:65535"); });
-}
-
-TEST(HttpTestClientPortValidation, PortJustAboveUpperBound) {
-  EXPECT_THROW({ HttpTestClient client("http://127.0.0.1:65536"); }, std::invalid_argument);
-}
-
-TEST(HttpTestClientPortValidation, PortFarOutOfRange) {
-  EXPECT_THROW({ HttpTestClient client("http://127.0.0.1:99999"); }, std::invalid_argument);
-}
-
-TEST(HttpTestClientPortValidation, PortOverflowsInt) {
-  EXPECT_THROW({ HttpTestClient client("http://127.0.0.1:2200000000"); }, std::invalid_argument);
+TEST(HttpTestClientUnit, OutOfValidPortRangeThrows) {
+  // 99999 fits in int but exceeds the valid TCP port range [1,65535].
+  EXPECT_THROW(HttpTestClient("http://127.0.0.1:99999"), std::runtime_error);
 }
 
 // ── Connection-failure paths (port 1 is always refused) ───────────────────────

@@ -13,19 +13,15 @@ HttpTestClient::HttpTestClient(const std::string& base_url) {
   std::smatch match;
   if (std::regex_match(base_url, match, url_re)) {
     host_ = match[1].str();
-    const std::string port_str = match[2].str();
     try {
-      const int parsed = std::stoi(port_str);
-      if (parsed < 0 || parsed > 65535) {
-        throw std::invalid_argument("port out of range");
-      }
-      port_ = parsed;
-    } catch (const std::out_of_range&) {
-      throw std::invalid_argument("Invalid port in URL '" + base_url + "': '" + port_str +
-                                  "' is not in range [0, 65535]");
-    } catch (const std::invalid_argument&) {
-      throw std::invalid_argument("Invalid port in URL '" + base_url + "': '" + port_str +
-                                  "' is not in range [0, 65535]");
+      port_ = std::stoi(match[2].str());
+    } catch (const std::invalid_argument& e) {
+      throw std::runtime_error("HttpTestClient: invalid port '" + match[2].str() + "': " + e.what());
+    } catch (const std::out_of_range& e) {
+      throw std::runtime_error("HttpTestClient: port out of range '" + match[2].str() + "': " + e.what());
+    }
+    if (port_ < 1 || port_ > 65535) {
+      throw std::runtime_error("HttpTestClient: port out of valid range [1,65535]: " + match[2].str());
     }
   } else {
     host_ = "localhost";
