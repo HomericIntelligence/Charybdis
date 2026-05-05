@@ -1,6 +1,6 @@
 FROM ubuntu:24.04 AS builder
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     cmake \
     ninja-build \
     g++ \
@@ -8,9 +8,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     python3 \
     python3-pip \
+    python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --break-system-packages conan
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+ARG USER_NAME=builder
+
+RUN groupadd -g ${GROUP_ID} ${USER_NAME} \
+    && useradd -m -u ${USER_ID} -g ${GROUP_ID} ${USER_NAME} \
+    && chmod 755 /home/${USER_NAME} \
+    && mkdir -p /src && chown ${USER_ID}:${GROUP_ID} /src
+
+ENV VIRTUAL_ENV=/opt/conan-venv
+RUN python3 -m venv $VIRTUAL_ENV \
+    && $VIRTUAL_ENV/bin/pip install --upgrade pip \
+    && $VIRTUAL_ENV/bin/pip install "conan==2.12.1" \
+    && chown -R ${USER_ID}:${GROUP_ID} $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+USER ${USER_NAME}
 
 WORKDIR /src
 
