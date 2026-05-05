@@ -23,6 +23,7 @@ jobs:
         run: |
           conan install . \
             --output-folder=build/coverage \
+            --lockfile=conan.lock \
             --build=missing \
             -s build_type=Debug \
             -s compiler=gcc \

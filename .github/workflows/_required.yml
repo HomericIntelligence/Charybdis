@@ -240,6 +240,7 @@ jobs:
         run: |
           CC=clang CXX=clang++ conan install . \
             --output-folder=build/debug \
+            --lockfile=conan.lock \
             --build=missing \
             -s build_type=Debug \
             -s compiler=clang \
@@ -250,3 +251,31 @@ jobs:
         run: CC=clang CXX=clang++ cmake --preset debug -DProjectCharybdis_ENABLE_CLANG_TIDY=ON
       - name: Build (clang-tidy runs as part of build)
         run: cmake --build --preset debug
+
+  lockfile-integrity:
+    name: lockfile-integrity
+    runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_run'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Conan
+        run: pip3 install --user conan
+      - name: Configure Conan profile
+        run: conan profile detect --force
+      - name: Regenerate lockfile
+        run: |
+          conan lock create . \
+            -s compiler=gcc \
+            -s compiler.version=14 \
+            -s compiler.libcxx=libstdc++11 \
+            -s compiler.cppstd=20 \
+            -s build_type=Debug \
+            -s os=Linux \
+            -s arch=x86_64
+      - name: Verify lockfile is up-to-date
+        run: |
+          if ! git diff --exit-code conan.lock; then
+            echo "ERROR: conan.lock is out of date. Run scripts/lock.sh locally and commit the result."
+            exit 1
+          fi
+          echo "conan.lock is up-to-date"
