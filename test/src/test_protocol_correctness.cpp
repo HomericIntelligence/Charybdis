@@ -8,6 +8,9 @@
 #include "projectcharybdis/http_test_client.hpp"
 #include "projectcharybdis/test_helpers.hpp"
 
+#include <set>
+#include <string>
+
 #include <gtest/gtest.h>
 
 namespace projectcharybdis {
