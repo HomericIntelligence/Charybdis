@@ -40,6 +40,7 @@ HttpTestClient::Response HttpTestClient::get(const std::string& path) {
 
   auto res = cli.Get(path);
   if (!res) return {0, {}};
+  if (res->body.size() > kMaxBodyBytes) return {res->status, {{"error", "response_too_large"}}};
 
   nlohmann::json body;
   try {
@@ -61,6 +62,7 @@ HttpTestClient::Response HttpTestClient::del(const std::string& path) {
 
   auto res = cli.Delete(path);
   if (!res) return {0, {}};
+  if (res->body.size() > kMaxBodyBytes) return {res->status, {{"error", "response_too_large"}}};
 
   nlohmann::json resp_body;
   try {
@@ -79,6 +81,7 @@ HttpTestClient::Response HttpTestClient::post_raw(const std::string& path, const
 
   auto res = cli.Post(path, body, content_type);
   if (!res) return {0, {}};
+  if (res->body.size() > kMaxBodyBytes) return {res->status, {{"error", "response_too_large"}}};
 
   nlohmann::json resp_body;
   try {
