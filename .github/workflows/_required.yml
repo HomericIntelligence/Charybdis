@@ -2,7 +2,7 @@ name: Required Checks
 
 on:
   workflow_run:
-    workflows: ["Build and Test", "Static Analysis", "Code Coverage"]
+    workflows: ["Build and Test", "Static Analysis", "Code Coverage", "CodeQL SAST"]
     types: [completed]
   pull_request:
     branches: [main]
@@ -103,6 +103,27 @@ jobs:
       - name: Skip (not triggered by this workflow)
         if: github.event_name != 'workflow_run'
         run: echo "Not a workflow_run event — pass (actual work done by Static Analysis workflow)"
+
+  security-codeql:
+    name: security/codeql
+    runs-on: ubuntu-24.04
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow.name == 'CodeQL SAST'
+    steps:
+      - name: Check CodeQL SAST result
+        if: github.event_name == 'workflow_run'
+        env:
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          if [ "${CONCLUSION}" != "success" ]; then
+            echo "CodeQL SAST workflow failed with: ${CONCLUSION}"
+            exit 1
+          fi
+          echo "CodeQL SAST passed"
+      - name: Skip (not triggered by this workflow)
+        if: github.event_name != 'workflow_run'
+        run: echo "Not a workflow_run event — pass (actual work done by CodeQL SAST workflow)"
 
   # ---------------------------------------------------------------------------
   # Independent jobs: run directly on push/pull_request

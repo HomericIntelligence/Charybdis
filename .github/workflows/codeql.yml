@@ -1,0 +1,63 @@
+name: CodeQL SAST
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'   # weekly, Monday 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: CodeQL / C++
+    runs-on: ubuntu-24.04
+    permissions:
+      security-events: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ninja-build python3-pip
+
+      - name: Install Conan
+        run: pip3 install conan
+
+      - name: Configure Conan profile
+        run: |
+          conan profile detect --force
+          conan profile show
+
+      - name: Install Conan dependencies
+        run: conan install . --output-folder=build/ci --build=missing -s build_type=Release
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: cpp
+          queries: security-extended,security-and-quality
+
+      - name: Build (CodeQL traces the build)
+        run: |
+          cmake --preset ci -DCMAKE_TOOLCHAIN_FILE=build/ci/conan_toolchain.cmake
+          cmake --build --preset ci
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:cpp
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: results.sarif
+          category: codeql-cpp
