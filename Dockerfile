@@ -61,12 +61,15 @@ RUN ctest --test-dir build --output-on-failure
 
 RUN cmake --install build --prefix /install
 
+# ---------------------------------------------------------------------------
+# Runtime stage — minimal image containing only the compiled binary.
+# ---------------------------------------------------------------------------
 FROM ubuntu:24.04 AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /install/bin/ProjectCharybdis /usr/local/bin/ProjectCharybdis
+COPY --from=builder /install/bin/ProjectCharybdis /usr/local/bin/charybdis
 
-ENTRYPOINT ["/usr/local/bin/ProjectCharybdis"]
+ENTRYPOINT ["/usr/local/bin/charybdis"]

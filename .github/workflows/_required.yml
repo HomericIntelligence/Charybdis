@@ -2,7 +2,7 @@ name: Required Checks
 
 on:
   workflow_run:
-    workflows: ["Build and Test", "Static Analysis", "Code Coverage", "CodeQL SAST", "Sanitizers", "Lock Check"]
+    workflows: ["Build and Test", "Static Analysis", "Code Coverage", "CodeQL SAST", "Sanitizers", "Lock Check", "Container Build and Publish"]
     types: [completed]
   pull_request:
     branches: [main]
@@ -166,6 +166,27 @@ jobs:
       - name: Skip (not triggered by this workflow)
         if: github.event_name != 'workflow_run'
         run: echo "Not a workflow_run event — pass (actual work done by Lock Check workflow)"
+
+  docker-build:
+    name: docker-build
+    runs-on: ubuntu-24.04
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow.name == 'Container Build and Publish'
+    steps:
+      - name: Check Container Build and Publish result
+        if: github.event_name == 'workflow_run'
+        env:
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          if [ "${CONCLUSION}" != "success" ]; then
+            echo "Container Build and Publish workflow failed with: ${CONCLUSION}"
+            exit 1
+          fi
+          echo "Container Build and Publish passed"
+      - name: Skip (not triggered by this workflow)
+        if: github.event_name != 'workflow_run'
+        run: echo "Not a workflow_run event — pass (actual work done by Container Build and Publish workflow)"
 
   # ---------------------------------------------------------------------------
   # Independent jobs: run directly on push/pull_request
