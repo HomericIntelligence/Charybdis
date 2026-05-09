@@ -1,0 +1,22 @@
+# .trivyignore — Trivy CVE suppression list for ProjectCharybdis
+#
+# POLICY: Suppressions must be reviewed and approved before being added here.
+# Each entry requires:
+#   1. A GitHub issue documenting the risk acceptance decision.
+#   2. The CVE ID (e.g. CVE-2024-12345).
+#   3. A comment explaining WHY it is suppressed (false positive, test-only path,
+#      mitigating control in place, upstream fix pending, etc.).
+#   4. A re-review date — suppressions older than 90 days must be reconfirmed.
+#
+# FORMAT (one CVE per line, comments above each entry):
+#
+#   # Issue: #<N> | Re-review: YYYY-MM-DD | Reason: <short explanation>
+#   CVE-YYYY-NNNNN
+#
+# PROCESS:
+#   - Open a PR adding the entry with the corresponding issue linked.
+#   - PR must be approved by a maintainer with security triage access.
+#   - All suppressions are audited quarterly by the HomericIntelligence security guild.
+#
+# ── Active suppressions ──────────────────────────────────────────────────────
+# (none — all CVEs are currently enforced)
