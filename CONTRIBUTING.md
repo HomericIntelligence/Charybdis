@@ -158,6 +158,35 @@ just test
 just coverage
 ```
 
+### Running with Sanitizers
+
+The `debug` preset automatically enables AddressSanitizer + UBSan. ThreadSanitizer has its
+own preset. Use these to catch memory errors and data races locally before pushing.
+
+```bash
+# AddressSanitizer + UBSan (default debug preset)
+# Detects: heap/stack buffer overflows, use-after-free, undefined behaviour
+just build           # uses --preset debug which sets SANITIZER=asan_ubsan
+just test
+
+# ThreadSanitizer — detects data races between threads
+# Note: TSan and ASan are mutually exclusive; use separate builds
+cmake --preset tsan
+cmake --build --preset tsan
+ctest --preset tsan
+```
+
+**Suppression files**: If a third-party library triggers a false positive, add an entry to
+`sanitizers/asan.supp` or `sanitizers/tsan.supp` (create as needed) and export the path:
+
+```bash
+export ASAN_OPTIONS=suppressions=sanitizers/asan.supp
+export TSAN_OPTIONS=suppressions=sanitizers/tsan.supp
+```
+
+**MemorySanitizer (MSan)** is not available without a fully instrumented libc++ build.
+See the MSan section in [SECURITY.md](SECURITY.md) for details.
+
 ### Lint and Format
 
 ```bash
