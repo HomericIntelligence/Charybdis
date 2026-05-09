@@ -4,3 +4,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Require a maintainer to review before any SHA-pinned action update merges.
+    # This prevents auto-merge of dependabot PRs that modify .github/ without
+    # human inspection, as required by branch protection rules.
+    reviewers:
+      - HomericIntelligence/maintainers
