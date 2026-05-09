@@ -34,6 +34,18 @@
       }
     },
     {
+      "name": "msan",
+      "displayName": "MSan (disabled — requires fully instrumented stdlib)",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ProjectCharybdis_BUILD_TESTING": "ON",
+        "ProjectCharybdis_ENABLE_SANITIZERS": "ON",
+        "ProjectCharybdis_SANITIZER": "msan"
+      }
+    },
+    {
       "name": "release",
       "displayName": "Release",
       "inherits": "base",

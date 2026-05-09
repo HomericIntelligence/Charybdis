@@ -108,6 +108,18 @@ When you report a vulnerability:
 - Social engineering attacks
 - Physical security
 
+## MemorySanitizer (MSan) Status
+
+MSan is intentionally absent from CI. Uninstrumented system libraries (libc++, libstdc++,
+glibc) produce unavoidable false positives because MSan requires **every** library in the
+process — including the C++ standard library — to be compiled with `-fsanitize=memory`.
+
+To enable MSan locally you must build a fully instrumented copy of libc++ from LLVM source
+and link against it. A skeleton CMake preset (`msan`, marked `hidden: true`) is recorded in
+`CMakePresets.json` to document what would be needed. Until a fully instrumented toolchain is
+available in CI, prefer ASAN (`--preset debug`) and TSan (`--preset tsan`) for dynamic
+analysis.
+
 ## Security Best Practices
 
 When contributing to ProjectCharybdis:
