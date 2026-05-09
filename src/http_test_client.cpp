@@ -16,12 +16,15 @@ HttpTestClient::HttpTestClient(const std::string& base_url) {
     try {
       port_ = std::stoi(match[2].str());
     } catch (const std::invalid_argument& e) {
-      throw std::runtime_error("HttpTestClient: invalid port '" + match[2].str() + "': " + e.what());
+      throw std::runtime_error("HttpTestClient: invalid port '" + match[2].str() +
+                               "': " + e.what());
     } catch (const std::out_of_range& e) {
-      throw std::runtime_error("HttpTestClient: port out of range '" + match[2].str() + "': " + e.what());
+      throw std::runtime_error("HttpTestClient: port out of range '" + match[2].str() +
+                               "': " + e.what());
     }
     if (port_ < 1 || port_ > 65535) {
-      throw std::runtime_error("HttpTestClient: port out of valid range [1,65535]: " + match[2].str());
+      throw std::runtime_error("HttpTestClient: port out of valid range [1,65535]: " +
+                               match[2].str());
     }
   } else {
     host_ = "localhost";
