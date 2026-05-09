@@ -6,7 +6,6 @@ find_package(nlohmann_json REQUIRED)
 
 # ── Version tests (always runnable) ──────────────────────────────────────────
 add_executable(${PROJECT_NAME}_tests
-    src/test_main.cpp
     src/test_http_client_unit.cpp
     src/test_helpers_unit.cpp)
 
