@@ -13,8 +13,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libubsan1 \
     && rm -rf /var/lib/apt/lists/*
 
-ARG USER_ID=1000
-ARG GROUP_ID=1000
+ARG USER_ID=10001
+ARG GROUP_ID=10001
 ARG USER_NAME=builder
 
 RUN groupadd -g ${GROUP_ID} ${USER_NAME} \
