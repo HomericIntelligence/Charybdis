@@ -270,6 +270,46 @@ Include: clear title, steps to reproduce, expected vs actual behavior, compiler/
 **Do not open public issues for security vulnerabilities.**
 See [SECURITY.md](SECURITY.md) for the responsible disclosure process.
 
+## Maintainer Tooling
+
+### apply-branch-protection.sh — Required Token Scopes
+
+`scripts/apply-branch-protection.sh` configures the `homeric-main-baseline` ruleset via
+the GitHub Rulesets API. It requires elevated permissions that are **not** granted by a
+standard developer token.
+
+#### Prerequisites
+
+| Requirement | Detail |
+|-------------|--------|
+| `repo` scope | Full repository access (read + write) |
+| Org admin rights | Required to modify rulesets (`admin:org` **or** repo admin role) |
+
+#### Obtaining a Suitable Token
+
+1. Go to **GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)**.
+2. Click **Generate new token (classic)**.
+3. Select the `repo` scope (full control of private repositories).
+4. If you are an org owner, the token inherits admin rights automatically.
+   If not, ask an org owner to run the script or grant you the **repository admin** role.
+5. Copy the token and configure `gh`:
+
+```bash
+gh auth login --with-token <<< "ghp_YOUR_TOKEN_HERE"
+# Verify:
+gh auth status
+```
+
+#### Running the Script
+
+```bash
+bash scripts/apply-branch-protection.sh
+```
+
+A `403 Forbidden` response from the GitHub API means either the `repo` scope is missing
+or the authenticated user does not have org admin rights. Re-check the scopes with
+`gh auth status` and regenerate the token if needed.
+
 ## Code of Conduct
 
 Please review our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
