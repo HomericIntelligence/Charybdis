@@ -34,3 +34,30 @@ Resilience metrics are reported via `hi.logs.>` → Argus/Prometheus.
 - Test: `ctest --preset debug`
 - All tool invocations via `scripts/` wrappers
 - Never `--no-verify`. Never merge with red CI.
+
+## Sanitizers
+
+Two CMake presets are available for runtime error detection:
+
+| Preset | Sanitizers enabled | Detects |
+|--------|--------------------|---------|
+| `debug` | AddressSanitizer + UBSan | Heap/stack overflows, use-after-free, undefined behaviour |
+| `tsan` | ThreadSanitizer | Data races between threads |
+
+**Mutual-exclusivity constraint:** ASan and TSan instrument memory at the same level and
+cannot be combined in a single build. Always use separate build directories.
+
+```bash
+# ASan + UBSan (default debug preset)
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug
+
+# TSan — separate build, separate ctest invocation
+cmake --preset tsan
+cmake --build --preset tsan
+ctest --preset tsan
+```
+
+The `SANITIZER` CMake cache variable controls which sanitizer is injected; the presets set
+it automatically. Do not pass `-DSANITIZER=` manually unless you know what you are doing.
