@@ -40,3 +40,12 @@ target_link_libraries(${PROJECT_NAME}_integration_tests
 
 gtest_discover_tests(${PROJECT_NAME}_integration_tests
     PROPERTIES LABELS "REQUIRES_NATS")
+
+# R04_QueueStarve_ConsumerStalls additionally requires a live myrmidon pull consumer.
+# Without one, the task will never advance to 'completed' and the recovery assertion
+# will always time out. Apply the REQUIRES_MYRMIDON label after test discovery so that
+# CI environments without a myrmidon agent can skip this test explicitly:
+#   ctest --label-exclude REQUIRES_MYRMIDON
+set_tests_properties(
+    "${PROJECT_NAME}_integration_tests.ChaosResilienceTest/R04_QueueStarve_ConsumerStalls"
+    PROPERTIES LABELS "REQUIRES_NATS;REQUIRES_MYRMIDON")

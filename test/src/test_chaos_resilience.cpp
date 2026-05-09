@@ -143,6 +143,12 @@ TEST_F(ChaosResilienceTest, R03_KillService_HealthDegrades) {
 }
 
 // R04: Queue-starve → task stays pending → advances to completed after removal
+//
+// REQUIRES_NATS   — Agamemnon + NATS JetStream must be reachable.
+// REQUIRES_MYRMIDON — A live myrmidon pull consumer must be running.
+//   Without it, the task will never transition from 'pending' to 'completed'
+//   and the 10-second recovery assertion will always time out.
+//   Skip in CI with: ctest --label-exclude REQUIRES_MYRMIDON
 TEST_F(ChaosResilienceTest, R04_QueueStarve_ConsumerStalls) {
   auto fault = inject("/v1/chaos/queue-starve");
   std::string fault_id = fault.value("id", "");
