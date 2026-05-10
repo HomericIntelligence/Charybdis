@@ -251,9 +251,9 @@ TEST_F(ChaosResilienceTest, R05MultiFaultStackedAndClearAll) {
   ASSERT_EQ(ls, 200);
   const auto faults = list_body.value("faults", nlohmann::json::array());
   const bool has_latency = std::ranges::any_of(
-      faults, [&latency_id](const auto& f) { return f.value("id", "") == latency_id; });
+      faults, [&latency_id](const auto& fault) { return fault.value("id", "") == latency_id; });
   const bool has_kill = std::ranges::any_of(
-      faults, [&kill_id](const auto& f) { return f.value("id", "") == kill_id; });
+      faults, [&kill_id](const auto& fault) { return fault.value("id", "") == kill_id; });
   EXPECT_TRUE(has_latency) << "Latency fault not found in active fault list";
   EXPECT_TRUE(has_kill) << "Kill fault not found in active fault list";
 
@@ -277,9 +277,9 @@ TEST_F(ChaosResilienceTest, R05MultiFaultStackedAndClearAll) {
   ASSERT_EQ(ls2, 200);
   const auto remaining = list2.value("faults", nlohmann::json::array());
   const bool latency_gone = !std::ranges::any_of(
-      remaining, [&latency_id](const auto& f) { return f.value("id", "") == latency_id; });
+      remaining, [&latency_id](const auto& fault) { return fault.value("id", "") == latency_id; });
   const bool kill_gone = !std::ranges::any_of(
-      remaining, [&kill_id](const auto& f) { return f.value("id", "") == kill_id; });
+      remaining, [&kill_id](const auto& fault) { return fault.value("id", "") == kill_id; });
   EXPECT_TRUE(latency_gone) << "Latency fault still present after removal";
   EXPECT_TRUE(kill_gone) << "Kill fault still present after removal";
 }
