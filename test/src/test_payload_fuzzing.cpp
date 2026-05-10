@@ -38,11 +38,12 @@ class PayloadFuzzingTest : public ::testing::Test {
 
 // E05: Random byte strings as payloads
 TEST_F(PayloadFuzzingTest, E05RandomByteStrings) {
-  // NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp)
-  std::mt19937 gen(42);  // Deterministic seed for reproducibility
+  // NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp,misc-const-correctness)
+  std::mt19937 gen(42);  // Deterministic seed for reproducibility; mutated by dist(gen)
   std::uniform_int_distribution<> dist(0, 255);
 
   for (int i = 0; i < 50; ++i) {
+    // NOLINTNEXTLINE(bugprone-unused-local-non-trivial-variable)
     std::string payload(100, '\0');
     for (auto& chr : payload) {
       chr = static_cast<char>(dist(gen));
@@ -50,6 +51,7 @@ TEST_F(PayloadFuzzingTest, E05RandomByteStrings) {
 
     auto [status, body] = client_->post_raw("/v1/agents", payload);
     // Any non-5xx response is acceptable (400, 422, etc.)
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     EXPECT_NE(status, 500) << "Server returned 500 on random payload #" << i;
   }
 
@@ -79,12 +81,13 @@ TEST_F(PayloadFuzzingTest, E06TruncatedJson) {
 
 // E07: Oversized payload (5MB)
 TEST_F(PayloadFuzzingTest, E07OversizedPayload) {
-  // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result)
+  // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result,bugprone-unused-local-non-trivial-variable)
   const std::string large_value(5 * 1024 * 1024, 'A');
   const nlohmann::json oversized = {{"name", large_value}};
 
   auto [status, body] = client_->post_raw("/v1/agents", oversized.dump());
   // 413 (too large), 400 (parse error), or 0 (connection reset) — all acceptable
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_NE(status, 500) << "Server returned 500 on 5MB payload";
 
   // Server should still be alive
@@ -133,6 +136,7 @@ TEST_F(PayloadFuzzingTest, E15ExtraUnknownFields) {
   auto [status, body] = client_->post("/v1/agents", payload);
   // Should create successfully, ignoring unknown fields
   EXPECT_GE(status, 200);
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_LT(status, 300) << "Extra fields should be ignored, not cause errors";
 
   // NOLINTNEXTLINE(readability-implicit-bool-conversion)

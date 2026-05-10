@@ -53,6 +53,7 @@ TEST_F(ChaosApiTest, E01InjectNetworkPartition) {
   ASSERT_EQ(body.value("type", ""), "network-partition");
   ASSERT_TRUE(body.value("active", false));
 
+  // NOLINTNEXTLINE(bugprone-unused-local-non-trivial-variable)
   const std::string fault_id = body.value("id", "");
   // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(fault_in_list(fault_id)) << "Fault not found in GET /v1/chaos";

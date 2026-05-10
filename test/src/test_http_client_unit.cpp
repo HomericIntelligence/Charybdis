@@ -59,6 +59,7 @@ TEST(HttpTestClientUnit, OutOfValidPortRangeThrows) {
 class HttpTestClientOffline : public ::testing::Test {
  protected:
   // Port 1 is privileged and always connection-refused on Linux runners.
+  // NOLINTNEXTLINE(hicpp-use-equals-default,modernize-use-equals-default)
   HttpTestClientOffline() : client_("http://127.0.0.1:1") {}
   // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   HttpTestClient client_;
