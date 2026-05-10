@@ -38,7 +38,7 @@ COPY conanfile.py ./
 COPY conan/ conan/
 RUN conan install . \
     --output-folder=build \
-    --profile=conan/profiles/default \
+    --profile:all=conan/profiles/default \
     --build=missing
 
 # Copy CMake configuration.
