@@ -15,17 +15,8 @@
 #include <string>
 
 #include <gtest/gtest.h>
-#include <set>
 
 namespace projectcharybdis {
-namespace {
-
-static std::string extract_agent_id(const nlohmann::json& agent) {
-  return agent.contains("id") ? agent.value("id", "")
-                              : agent.value("agent", nlohmann::json{}).value("id", "");
-}
-
-}  // namespace
 
 // NOLINTNEXTLINE(misc-use-internal-linkage)
 class ProtocolCorrectnessTest : public ::testing::Test {

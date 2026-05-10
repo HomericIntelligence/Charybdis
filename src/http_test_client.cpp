@@ -32,11 +32,11 @@ HttpTestClient::HttpTestClient(const std::string& base_url) {
     host_ = match[1].str();
     try {
       port_ = std::stoi(match[2].str());
-    // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
+      // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
     } catch (const std::invalid_argument& e) {
       throw std::runtime_error("HttpTestClient: invalid port '" + match[2].str() +
                                "': " + e.what());
-    // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
+      // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
     } catch (const std::out_of_range& e) {
       throw std::runtime_error("HttpTestClient: port out of range '" + match[2].str() +
                                "': " + e.what());
