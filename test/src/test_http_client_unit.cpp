@@ -10,7 +10,11 @@
 
 #include "projectcharybdis/http_test_client.hpp"
 
+#include <chrono>
 #include <httplib.h>
+#include <nlohmann/json.hpp>
+#include <stdexcept>
+#include <string>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -67,7 +71,7 @@ TEST_F(HttpTestClientOffline, GetReturnsZeroStatus) {
 }
 
 TEST_F(HttpTestClientOffline, PostReturnsZeroStatus) {
-  nlohmann::json payload = {{"key", "value"}};
+  const nlohmann::json payload = {{"key", "value"}};
   auto [status, body] = client_.post("/any/path", payload);
   EXPECT_EQ(status, 0);
   EXPECT_TRUE(body.empty());
@@ -124,17 +128,17 @@ class MockServer {
     });
 
     svr_.Get("/v1/oversized", [](const httplib::Request& /*req*/, httplib::Response& res) {
-      std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
+      const std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
       res.set_content(big, "text/plain");
     });
 
     svr_.Post("/v1/oversized-echo", [](const httplib::Request& /*req*/, httplib::Response& res) {
-      std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
+      const std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
       res.set_content(big, "text/plain");
     });
 
     svr_.Delete("/v1/oversized", [](const httplib::Request& /*req*/, httplib::Response& res) {
-      std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
+      const std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
       res.set_content(big, "text/plain");
     });
 

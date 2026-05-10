@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <tuple>
 
 #include <gtest/gtest.h>
 
@@ -56,7 +57,7 @@ TEST_F(ChaosApiTest, E01InjectNetworkPartition) {
   // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(fault_in_list(fault_id)) << "Fault not found in GET /v1/chaos";
 
-  client_->del("/v1/chaos/" + fault_id);
+  std::ignore = client_->del("/v1/chaos/" + fault_id);
 }
 
 // E02: Inject latency fault
@@ -66,7 +67,7 @@ TEST_F(ChaosApiTest, E02InjectLatency) {
   ASSERT_LT(status, 300);
   EXPECT_EQ(body.value("type", ""), "latency");
 
-  client_->del("/v1/chaos/" + body.value("id", ""));
+  std::ignore = client_->del("/v1/chaos/" + body.value("id", ""));
 }
 
 // E03: Inject kill fault
@@ -76,7 +77,7 @@ TEST_F(ChaosApiTest, E03InjectKill) {
   ASSERT_LT(status, 300);
   EXPECT_EQ(body.value("type", ""), "kill");
 
-  client_->del("/v1/chaos/" + body.value("id", ""));
+  std::ignore = client_->del("/v1/chaos/" + body.value("id", ""));
 }
 
 // E04: Remove fault

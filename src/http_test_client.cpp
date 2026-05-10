@@ -1,15 +1,17 @@
 #include "projectcharybdis/http_test_client.hpp"
 
 #include <httplib.h>
-#include <iostream>
+#include <memory>
+#include <nlohmann/json.hpp>
 #include <regex>
 #include <stdexcept>
+#include <string>
 
 namespace projectcharybdis {
 
 HttpTestClient::HttpTestClient(const std::string& base_url) {
   // Parse "http://host:port" into host and port
-  std::regex url_re(R"(https?://([^:]+):(\d+))");
+  const std::regex url_re(R"(https?://([^:]+):(\d+))");
   std::smatch match;
   if (std::regex_match(base_url, match, url_re)) {
     host_ = match[1].str();

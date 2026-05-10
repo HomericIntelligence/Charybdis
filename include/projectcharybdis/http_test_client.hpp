@@ -12,6 +12,7 @@ namespace projectcharybdis {
 
 /// Thin HTTP client for chaos/resilience GTest tests.
 /// Wraps cpp-httplib for REST API interactions with Agamemnon.
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions,hicpp-special-member-functions)
 class HttpTestClient {
  public:
   // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result)
