@@ -3,7 +3,8 @@ FROM ubuntu:24.04 AS builder
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     cmake \
     ninja-build \
-    g++ \
+    gcc-14 \
+    g++-14 \
     git \
     ca-certificates \
     python3 \
@@ -11,6 +12,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     python3-venv \
     libasan8 \
     libubsan1 \
+    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100 \
     && rm -rf /var/lib/apt/lists/*
 
 ARG USER_ID=10001
@@ -38,7 +41,7 @@ COPY conanfile.py ./
 COPY conan/ conan/
 RUN conan install . \
     --output-folder=build \
-    --profile=conan/profiles/default \
+    --profile:all=conan/profiles/default \
     --build=missing
 
 # Copy CMake configuration.
