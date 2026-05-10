@@ -1,4 +1,4 @@
-#include "projectcharybdis/version.hpp"
+#include "projectcharybdis/version.hpp"  // NOLINT(misc-include-cleaner)
 
 #include <iostream>
 

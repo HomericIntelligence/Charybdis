@@ -9,14 +9,16 @@ namespace projectcharybdis {
 
 /// Get Agamemnon URL from environment or default
 inline std::string agamemnon_url() {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   const char* env = std::getenv("AGAMEMNON_URL");
-  return env ? env : "http://localhost:8080";
+  return (env != nullptr) ? std::string{env} : std::string{"http://localhost:8080"};
 }
 
 /// Get NATS URL from environment or default
 inline std::string nats_url() {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   const char* env = std::getenv("NATS_URL");
-  return env ? env : "nats://localhost:4222";
+  return (env != nullptr) ? std::string{env} : std::string{"nats://localhost:4222"};
 }
 
 /// Generate a random string for test isolation
@@ -36,7 +38,9 @@ template <typename Pred>
 bool wait_until(Pred pred, std::chrono::seconds timeout = std::chrono::seconds{30}) {
   auto start = std::chrono::steady_clock::now();
   while (std::chrono::steady_clock::now() - start < timeout) {
-    if (pred()) return true;
+    if (pred()) {
+      return true;
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds{500});
   }
   return false;

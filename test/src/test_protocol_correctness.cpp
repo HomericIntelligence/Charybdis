@@ -8,6 +8,9 @@
 #include "projectcharybdis/http_test_client.hpp"
 #include "projectcharybdis/test_helpers.hpp"
 
+#include <chrono>
+#include <memory>
+#include <nlohmann/json.hpp>
 #include <set>
 #include <string>
 
@@ -15,30 +18,34 @@
 
 namespace projectcharybdis {
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 class ProtocolCorrectnessTest : public ::testing::Test {
  protected:
   void SetUp() override {
     client_ = std::make_unique<HttpTestClient>(agamemnon_url());
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (!client_->is_healthy()) {
       GTEST_SKIP() << "Agamemnon not reachable";
     }
   }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::unique_ptr<HttpTestClient> client_;
 };
 
 // C10: Idempotent stream creation — verify Agamemnon can be restarted
 // and ensure_streams() called multiple times without error
-TEST_F(ProtocolCorrectnessTest, C10_IdempotentStreamCreation) {
+TEST_F(ProtocolCorrectnessTest, C10IdempotentStreamCreation) {
   // Agamemnon calls ensure_streams() on startup. If it's running, streams exist.
   // Verify health (which implies ensure_streams succeeded)
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(client_->is_healthy());
 
   // Create a task — this exercises the NATS publish path which requires streams
   auto [s1, team] = client_->post("/v1/teams", {{"name", "c10-team"}});
   ASSERT_GE(s1, 200);
   ASSERT_LT(s1, 300);
-  std::string team_id = team.value("team", nlohmann::json{}).value("id", "");
+  const std::string team_id = team.value("team", nlohmann::json{}).value("id", "");
   ASSERT_FALSE(team_id.empty());
 
   // Create agent
@@ -51,7 +58,7 @@ TEST_F(ProtocolCorrectnessTest, C10_IdempotentStreamCreation) {
                                                   {"owner", "e2e"},
                                                   {"role", "member"}});
   ASSERT_GE(s2, 200);
-  std::string agent_id = extract_agent_id(agent);
+  const std::string agent_id = extract_agent_id(agent);
 
   // Create task — exercises NATS publish to hi.myrmidon.hello.*
   auto [s3, task] =
@@ -67,7 +74,7 @@ TEST_F(ProtocolCorrectnessTest, C10_IdempotentStreamCreation) {
 TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
   // Create and immediately check state
   auto [s1, team] = client_->post("/v1/teams", {{"name", "state-team"}});
-  std::string team_id = team.value("team", nlohmann::json{}).value("id", "");
+  const std::string team_id = team.value("team", nlohmann::json{}).value("id", "");
 
   auto [s2, agent] = client_->post("/v1/agents", {{"name", "state-agent"},
                                                   {"label", "State"},
@@ -77,24 +84,24 @@ TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
                                                   {"tags", nlohmann::json::array()},
                                                   {"owner", "e2e"},
                                                   {"role", "member"}});
-  std::string agent_id = extract_agent_id(agent);
+  const std::string agent_id = extract_agent_id(agent);
 
   auto [s3, task_resp] =
       client_->post("/v1/teams/" + team_id + "/tasks", {{"subject", "State test"},
                                                         {"description", "state"},
                                                         {"type", "hello"},
                                                         {"assigneeAgentId", agent_id}});
-  std::string task_id = task_resp.value("task", nlohmann::json{}).value("id", "");
+  const std::string task_id = task_resp.value("task", nlohmann::json{}).value("id", "");
 
   // Poll and collect states
   std::set<std::string> observed_states;
-  auto ok = wait_until(
+  std::ignore = wait_until(
       [&]() {
         auto [ts, tasks] = client_->get("/v1/tasks");
-        for (const auto& t : tasks.value("tasks", nlohmann::json::array())) {
-          if (t.value("id", "") == task_id) {
-            observed_states.insert(t.value("status", "unknown"));
-            return t.value("status", "") == "completed";
+        for (const auto& task : tasks.value("tasks", nlohmann::json::array())) {
+          if (task.value("id", "") == task_id) {
+            observed_states.insert(task.value("status", "unknown"));
+            return task.value("status", "") == "completed";
           }
         }
         return false;

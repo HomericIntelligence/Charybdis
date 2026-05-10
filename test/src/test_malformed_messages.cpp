@@ -11,19 +11,26 @@
 #include "projectcharybdis/http_test_client.hpp"
 #include "projectcharybdis/test_helpers.hpp"
 
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <string>
+
 #include <gtest/gtest.h>
 
 namespace projectcharybdis {
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 class MalformedMessageTest : public ::testing::Test {
  protected:
   void SetUp() override {
     client_ = std::make_unique<HttpTestClient>(agamemnon_url());
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (!client_->is_healthy()) {
       GTEST_SKIP() << "Agamemnon not reachable";
     }
   }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::unique_ptr<HttpTestClient> client_;
 };
 
@@ -35,7 +42,9 @@ TEST_F(MalformedMessageTest, MalformedTaskCreation) {
 
   // Binary garbage
   std::string binary(256, '\0');
-  for (int i = 0; i < 256; ++i) binary[i] = static_cast<char>(i);
+  for (int i = 0; i < 256; ++i) {
+    binary[i] = static_cast<char>(i);
+  }
   auto [s2, _2] = client_->post_raw("/v1/agents", binary);
   EXPECT_NE(s2, 500);
 
@@ -43,6 +52,7 @@ TEST_F(MalformedMessageTest, MalformedTaskCreation) {
   auto [s3, _3] = client_->post_raw("/v1/agents", "<agent><name>xml</name></agent>", "text/xml");
   EXPECT_NE(s3, 500);
 
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(client_->is_healthy());
 }
 
@@ -57,15 +67,17 @@ TEST_F(MalformedMessageTest, EmptyBodies) {
   auto [s3, _3] = client_->post_raw("/v1/chaos/test-empty", "");
   EXPECT_NE(s3, 500);
 
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(client_->is_healthy());
 }
 
 // Wrong content-type header
 TEST_F(MalformedMessageTest, WrongContentType) {
-  nlohmann::json valid = {{"name", "wrong-ct"}};
+  const nlohmann::json valid = {{"name", "wrong-ct"}};
   auto [status, body] = client_->post_raw("/v1/agents", valid.dump(), "text/plain");
   // Should either parse it anyway or reject gracefully
   EXPECT_NE(status, 500);
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(client_->is_healthy());
 }
 

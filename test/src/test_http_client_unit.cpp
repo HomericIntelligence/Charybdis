@@ -10,7 +10,11 @@
 
 #include "projectcharybdis/http_test_client.hpp"
 
+#include <chrono>
 #include <httplib.h>
+#include <nlohmann/json.hpp>
+#include <stdexcept>
+#include <string>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -51,10 +55,12 @@ TEST(HttpTestClientUnit, OutOfValidPortRangeThrows) {
 
 // ── Connection-failure paths (port 1 is always refused) ───────────────────────
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 class HttpTestClientOffline : public ::testing::Test {
  protected:
   // Port 1 is privileged and always connection-refused on Linux runners.
   HttpTestClientOffline() : client_("http://127.0.0.1:1") {}
+  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   HttpTestClient client_;
 };
 
@@ -65,7 +71,7 @@ TEST_F(HttpTestClientOffline, GetReturnsZeroStatus) {
 }
 
 TEST_F(HttpTestClientOffline, PostReturnsZeroStatus) {
-  nlohmann::json payload = {{"key", "value"}};
+  const nlohmann::json payload = {{"key", "value"}};
   auto [status, body] = client_.post("/any/path", payload);
   EXPECT_EQ(status, 0);
   EXPECT_TRUE(body.empty());
@@ -94,6 +100,7 @@ TEST_F(HttpTestClientOffline, IsHealthyReturnsFalse) { EXPECT_FALSE(client_.is_h
 // ── Mock server: exercises the response-body parsing paths ────────────────────
 
 /// Minimal in-process HTTP mock server for unit tests.
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 class MockServer {
  public:
   explicit MockServer() {
@@ -121,23 +128,23 @@ class MockServer {
     });
 
     svr_.Get("/v1/oversized", [](const httplib::Request& /*req*/, httplib::Response& res) {
-      std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
+      const std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
       res.set_content(big, "text/plain");
     });
 
     svr_.Post("/v1/oversized-echo", [](const httplib::Request& /*req*/, httplib::Response& res) {
-      std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
+      const std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
       res.set_content(big, "text/plain");
     });
 
     svr_.Delete("/v1/oversized", [](const httplib::Request& /*req*/, httplib::Response& res) {
-      std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
+      const std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
       res.set_content(big, "text/plain");
     });
 
     svr_.Get("/v1/boundary", [](const httplib::Request& /*req*/, httplib::Response& res) {
       // Exactly at the limit — not rejected
-      std::string exact(HttpTestClient::kMaxBodyBytes, 'x');
+      const std::string exact(HttpTestClient::kMaxBodyBytes, 'x');
       res.set_content(exact, "text/plain");
     });
 
@@ -151,10 +158,17 @@ class MockServer {
 
   ~MockServer() {
     svr_.stop();
-    if (thread_.joinable()) thread_.join();
+    if (thread_.joinable()) {
+      thread_.join();
+    }
   }
 
-  int port() const { return port_; }
+  MockServer(const MockServer&) = delete;
+  MockServer& operator=(const MockServer&) = delete;
+  MockServer(MockServer&&) = delete;
+  MockServer& operator=(MockServer&&) = delete;
+
+  [[nodiscard]] int port() const { return port_; }
 
  private:
   httplib::Server svr_;
@@ -162,6 +176,7 @@ class MockServer {
   std::thread thread_;
 };
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 class HttpTestClientOnline : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -174,7 +189,9 @@ class HttpTestClientOnline : public ::testing::Test {
     mock_.reset();
   }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::unique_ptr<MockServer> mock_;
+  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::unique_ptr<HttpTestClient> client_;
 };
 
@@ -196,7 +213,7 @@ TEST_F(HttpTestClientOnline, GetHandlesNonJsonBody) {
 }
 
 TEST_F(HttpTestClientOnline, PostSendsJsonBody) {
-  nlohmann::json payload = {{"ping", "pong"}};
+  const nlohmann::json payload = {{"ping", "pong"}};
   auto [status, body] = client_->post("/v1/echo", payload);
   EXPECT_EQ(status, 200);
 }

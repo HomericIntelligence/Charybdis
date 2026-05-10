@@ -3,6 +3,7 @@ Checks: >
   *,
   -fuchsia-*,
   -llvm-*,
+  -llvmlibc-*,
   -google-readability-todo,
   -readability-magic-numbers,
   -cppcoreguidelines-avoid-magic-numbers,
@@ -10,8 +11,10 @@ Checks: >
   -altera-*,
   -cert-err58-cpp,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
-  -hicpp-no-array-decay
-WarningsAsErrors: ''
-HeaderFilterRegex: '(include|src|test)/'
+  -hicpp-no-array-decay,
+  -misc-include-cleaner,
+  -abseil-*
+WarningsAsErrors: '*'
+HeaderFilterRegex: '/ProjectCharybdis/(include|src|test)/'
 FormatStyle: file
 ...

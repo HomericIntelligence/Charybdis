@@ -17,5 +17,6 @@ function(set_project_warnings project_name)
     set(PROJECT_WARNINGS_CXX ${GCC_WARNINGS})
   endif()
 
-  target_compile_options(${project_name} PRIVATE ${PROJECT_WARNINGS_CXX})
+  target_compile_options(${project_name} PRIVATE
+    $<$<COMPILE_LANGUAGE:CXX>:${PROJECT_WARNINGS_CXX}>)
 endfunction()

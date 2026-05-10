@@ -11,33 +11,42 @@
 #include "projectcharybdis/http_test_client.hpp"
 #include "projectcharybdis/test_helpers.hpp"
 
+#include <memory>
+#include <nlohmann/json.hpp>
 #include <random>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
 namespace projectcharybdis {
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 class PayloadFuzzingTest : public ::testing::Test {
  protected:
   void SetUp() override {
     client_ = std::make_unique<HttpTestClient>(agamemnon_url());
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (!client_->is_healthy()) {
       GTEST_SKIP() << "Agamemnon not reachable at " << agamemnon_url();
     }
   }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::unique_ptr<HttpTestClient> client_;
 };
 
 // E05: Random byte strings as payloads
-TEST_F(PayloadFuzzingTest, E05_RandomByteStrings) {
+TEST_F(PayloadFuzzingTest, E05RandomByteStrings) {
+  // NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp)
   std::mt19937 gen(42);  // Deterministic seed for reproducibility
   std::uniform_int_distribution<> dist(0, 255);
 
   for (int i = 0; i < 50; ++i) {
     std::string payload(100, '\0');
-    for (auto& c : payload) c = static_cast<char>(dist(gen));
+    for (auto& chr : payload) {
+      chr = static_cast<char>(dist(gen));
+    }
 
     auto [status, body] = client_->post_raw("/v1/agents", payload);
     // Any non-5xx response is acceptable (400, 422, etc.)
@@ -45,12 +54,13 @@ TEST_F(PayloadFuzzingTest, E05_RandomByteStrings) {
   }
 
   // Verify server survived
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(client_->is_healthy()) << "Server crashed after 50 random payloads";
 }
 
 // E06: Truncated JSON
-TEST_F(PayloadFuzzingTest, E06_TruncatedJson) {
-  std::vector<std::string> truncated = {
+TEST_F(PayloadFuzzingTest, E06TruncatedJson) {
+  const std::vector<std::string> truncated = {
       R"({"name": "test)",        // Cut mid-string
       R"({"name": "test", "la)",  // Cut mid-key
       R"({)",                     // Just opening brace
@@ -63,25 +73,28 @@ TEST_F(PayloadFuzzingTest, E06_TruncatedJson) {
     EXPECT_NE(status, 500) << "500 on truncated JSON: " << payload;
   }
 
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(client_->is_healthy()) << "Server crashed after truncated JSON payloads";
 }
 
 // E07: Oversized payload (5MB)
-TEST_F(PayloadFuzzingTest, E07_OversizedPayload) {
-  std::string large_value(5 * 1024 * 1024, 'A');
-  nlohmann::json oversized = {{"name", large_value}};
+TEST_F(PayloadFuzzingTest, E07OversizedPayload) {
+  // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result)
+  const std::string large_value(5 * 1024 * 1024, 'A');
+  const nlohmann::json oversized = {{"name", large_value}};
 
   auto [status, body] = client_->post_raw("/v1/agents", oversized.dump());
   // 413 (too large), 400 (parse error), or 0 (connection reset) — all acceptable
   EXPECT_NE(status, 500) << "Server returned 500 on 5MB payload";
 
   // Server should still be alive
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(client_->is_healthy()) << "Server crashed after 5MB payload";
 }
 
 // E14: Valid JSON but missing required fields
-TEST_F(PayloadFuzzingTest, E14_MissingRequiredFields) {
-  std::vector<nlohmann::json> payloads = {
+TEST_F(PayloadFuzzingTest, E14MissingRequiredFields) {
+  const std::vector<nlohmann::json> payloads = {
       nlohmann::json::object(),         // Empty object
       {{"irrelevant_field", "value"}},  // No name
       {{"name", nullptr}},              // Null name
@@ -95,12 +108,13 @@ TEST_F(PayloadFuzzingTest, E14_MissingRequiredFields) {
     EXPECT_NE(status, 500) << "500 on payload: " << payload.dump();
   }
 
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(client_->is_healthy());
 }
 
 // E15: Valid JSON with extra unknown fields
-TEST_F(PayloadFuzzingTest, E15_ExtraUnknownFields) {
-  nlohmann::json payload = {
+TEST_F(PayloadFuzzingTest, E15ExtraUnknownFields) {
+  const nlohmann::json payload = {
       {"name", "fuzz-agent-" + random_suffix()},
       {"label", "Fuzz Agent"},
       {"program", "none"},
@@ -121,6 +135,7 @@ TEST_F(PayloadFuzzingTest, E15_ExtraUnknownFields) {
   EXPECT_GE(status, 200);
   EXPECT_LT(status, 300) << "Extra fields should be ignored, not cause errors";
 
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(client_->is_healthy());
 }
 
