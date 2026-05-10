@@ -14,6 +14,7 @@ namespace projectcharybdis {
 /// Wraps cpp-httplib for REST API interactions with Agamemnon.
 class HttpTestClient {
  public:
+  // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result)
   static constexpr std::size_t kMaxBodyBytes = 10 * 1024 * 1024;  // 10 MB
 
   explicit HttpTestClient(const std::string& base_url = "http://localhost:8080");
@@ -25,15 +26,16 @@ class HttpTestClient {
     nlohmann::json body;
   };
 
-  Response get(const std::string& path);
-  Response post(const std::string& path, const nlohmann::json& body = {});
-  Response del(const std::string& path);
+  [[nodiscard]] Response get(const std::string& path);
+  [[nodiscard]] Response post(const std::string& path, const nlohmann::json& body = {});
+  [[nodiscard]] Response del(const std::string& path);
 
   /// POST with raw string body (for malformed payload tests)
-  Response post_raw(const std::string& path, const std::string& body,
-                    const std::string& content_type = "application/json");
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+  [[nodiscard]] Response post_raw(const std::string& path, const std::string& body,
+                                  const std::string& content_type = "application/json");
 
-  bool is_healthy();
+  [[nodiscard]] bool is_healthy();
 
  private:
   static constexpr int kConnectionTimeoutSec = 5;

@@ -9,6 +9,7 @@
 #include "projectcharybdis/test_helpers.hpp"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -20,17 +21,22 @@ class ChaosApiTest : public ::testing::Test {
  protected:
   void SetUp() override {
     client_ = std::make_unique<HttpTestClient>(agamemnon_url());
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (!client_->is_healthy()) {
-      GTEST_SKIP() << "Agamemnon not reachable at " << agamemnon_url();  // NOLINT(readability-implicit-bool-conversion)
+      GTEST_SKIP() << "Agamemnon not reachable at " << agamemnon_url();
     }
   }
 
-  bool fault_in_list(const std::string& fault_id) {  // NOLINT(readability-convert-member-functions-to-static)
+  // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+  bool fault_in_list(const std::string& fault_id) {
     auto [list_status, list_body] = client_->get("/v1/chaos");
-    if (list_status != 200) { return false; }
+    if (list_status != 200) {
+      return false;
+    }
     const auto faults = list_body.value("faults", nlohmann::json::array());
-    return std::any_of(faults.begin(), faults.end(),
-                       [&fault_id](const auto& fault) { return fault.value("id", "") == fault_id; });
+    return std::any_of(faults.begin(), faults.end(), [&fault_id](const auto& fault) {
+      return fault.value("id", "") == fault_id;
+    });
   }
 
   // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
@@ -47,7 +53,8 @@ TEST_F(ChaosApiTest, E01InjectNetworkPartition) {
   ASSERT_TRUE(body.value("active", false));
 
   const std::string fault_id = body.value("id", "");
-  EXPECT_TRUE(fault_in_list(fault_id)) << "Fault not found in GET /v1/chaos";  // NOLINT(readability-implicit-bool-conversion)
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+  EXPECT_TRUE(fault_in_list(fault_id)) << "Fault not found in GET /v1/chaos";
 
   client_->del("/v1/chaos/" + fault_id);
 }

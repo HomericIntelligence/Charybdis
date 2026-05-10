@@ -38,27 +38,27 @@ TEST(TestHelpersUnit, RandomSuffixIsNumeric) {
   const std::string suffix = random_suffix();
   EXPECT_FALSE(suffix.empty());
   // All characters should be decimal digits
-  for (char c : suffix) {
-    EXPECT_TRUE(c >= '0' && c <= '9') << "Non-digit in suffix: " << c;
+  for (const char chr : suffix) {
+    EXPECT_TRUE(chr >= '0' && chr <= '9') << "Non-digit in suffix: " << chr;
   }
 }
 
 TEST(TestHelpersUnit, WaitUntilReturnsTrueImmediately) {
   // Predicate that is already true — should return true with no waiting
-  bool result = wait_until([]() { return true; }, std::chrono::seconds{1});
+  const bool result = wait_until([]() { return true; }, std::chrono::seconds{1});
   EXPECT_TRUE(result);
 }
 
 TEST(TestHelpersUnit, WaitUntilReturnsFalseOnTimeout) {
   // Predicate that is never true — should time out and return false
-  bool result = wait_until([]() { return false; }, std::chrono::seconds{1});
+  const bool result = wait_until([]() { return false; }, std::chrono::seconds{1});
   EXPECT_FALSE(result);
 }
 
 TEST(TestHelpersUnit, WaitUntilReturnsTrueAfterDelay) {
   // Predicate that becomes true after a few polls
   int count = 0;
-  bool result = wait_until(
+  const bool result = wait_until(
       [&count]() {
         ++count;
         return count >= 3;

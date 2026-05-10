@@ -11,19 +11,23 @@
 #include "projectcharybdis/http_test_client.hpp"
 #include "projectcharybdis/test_helpers.hpp"
 
+#include <memory>
+
 #include <gtest/gtest.h>
 
 namespace projectcharybdis {
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 class MalformedMessageTest : public ::testing::Test {
  protected:
   void SetUp() override {
     client_ = std::make_unique<HttpTestClient>(agamemnon_url());
     if (!client_->is_healthy()) {
-      GTEST_SKIP() << "Agamemnon not reachable";
+      GTEST_SKIP() << "Agamemnon not reachable";  // NOLINT(readability-implicit-bool-conversion)
     }
   }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::unique_ptr<HttpTestClient> client_;
 };
 

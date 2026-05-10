@@ -154,7 +154,9 @@ class MockServer {
 
   ~MockServer() {
     svr_.stop();
-    if (thread_.joinable()) { thread_.join(); }
+    if (thread_.joinable()) {
+      thread_.join();
+    }
   }
 
   MockServer(const MockServer&) = delete;
