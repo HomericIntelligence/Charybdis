@@ -260,16 +260,10 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           severity: CRITICAL,HIGH
-      - name: Install Conan (for audit)
-        run: pip3 install --user conan
-      - name: Run Conan audit (if available)
-        run: |
-          if ~/.local/bin/conan audit --help &>/dev/null 2>&1 || conan audit --help &>/dev/null 2>&1; then
-            conan profile detect --force
-            conan audit .
-          else
-            echo "conan audit not available in this version, skipping"
-          fi
+      # Note: Conan's `audit` subcommand requires authentication against
+      # audit.conan.io and is run as a separate, opt-in step locally (see
+      # docs). Trivy (above) already scans `conan.lock` for CVEs against its
+      # offline DB, providing CI-time coverage without external credentials.
 
   security-secrets-scan:
     name: security/secrets-scan
@@ -281,8 +275,14 @@ jobs:
           fetch-depth: 0
       - name: Detect secrets
         run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz
-          ./gitleaks detect --source . --redact --no-git
+          set -euo pipefail
+          # Extract gitleaks into a tmpdir outside the source tree so the
+          # tarball's own README.md (which documents a sample sidekiq secret)
+          # does not pollute the scan target.
+          GITLEAKS_DIR="$(mktemp -d)"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+            | tar xz -C "${GITLEAKS_DIR}"
+          "${GITLEAKS_DIR}/gitleaks" detect --source . --redact --no-git
 
   schema-validation:
     name: schema-validation
