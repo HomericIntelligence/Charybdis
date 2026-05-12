@@ -48,6 +48,13 @@ Charybdis explicitly does not collect, log, or transmit:
   pass/fail outcomes, not payload content.
 - **Resilience metrics (`hi.logs.>`)** — retention is governed by the Argus stream
   configuration in ProjectArgus. Charybdis has no control over downstream retention.
+  The authoritative configuration lives in
+  [`HomericIntelligence/ProjectArgus`](https://github.com/HomericIntelligence/ProjectArgus)
+  under `configs/jetstream/` (stream name: `HI_LOGS`, subject filter: `hi.logs.>`).
+  Operators verifying compliance should consult that repo for the current
+  `MaxAge` / `MaxBytes` / `Discard` policy and the stream's owner team. If the
+  stream is renamed or its retention policy changes, this section must be updated
+  in the same PR.
 
 ## Sensitive Environment Guidance
 

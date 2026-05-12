@@ -1,4 +1,7 @@
-FROM ubuntu:24.04 AS builder
+# Pinned to the multi-arch index digest of `ubuntu:24.04` resolved on 2026-05-11.
+# Renovate/Dependabot bumps must update both this builder stage and the runtime
+# stage below in lockstep so the audit trail stays reproducible. See #131 / #152.
+FROM ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b AS builder
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     cmake \
@@ -72,7 +75,7 @@ RUN cmake --install build --prefix /install
 # ---------------------------------------------------------------------------
 # Runtime stage — minimal image containing only the compiled binary.
 # ---------------------------------------------------------------------------
-FROM ubuntu:24.04 AS runtime
+FROM ubuntu:24.04@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \

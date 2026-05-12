@@ -47,6 +47,24 @@ Every successful `POST /v1/chaos/<type>` returns a JSON object:
 
 The `id` field is required for the cleanup `DELETE` call.
 
+### `queue-starve` Targeting
+
+`POST /v1/chaos/queue-starve` is currently invoked by Charybdis tests with **no JSON
+body** (see `test/src/test_chaos_api.cpp` and `test_chaos_resilience.cpp`). With an
+empty body, Agamemnon stalls all pull consumers it knows about — this is the default
+behaviour exercised by the resilience suite.
+
+To target a specific NATS subject (rather than every subscriber), POST a JSON body of
+the form:
+
+```json
+{ "subject": "hi.test.<scenario>.<random-suffix>" }
+```
+
+Production subjects (`hi.myrmidon.hello.*`, `hi.logs.>`) must never be passed as the
+`subject` field. Tests that need to exercise these patterns must mint an isolated
+subject via `random_suffix()` per the **Isolation invariant** below.
+
 ### Example Lifecycle
 
 ```bash
@@ -86,8 +104,22 @@ The standard chaos scenario follows this sequence:
    health check result) as a baseline for comparison.
 
 3. **Assert recovery** — Charybdis polls the system using `wait_until()` with a 30-second
-   timeout (configurable). The predicate checks that the mesh has returned to a healthy
-   state (e.g., Agamemnon `/health` responds, tasks reach `completed` status).
+   default timeout. The predicate checks that the mesh has returned to a healthy state
+   (e.g., Agamemnon `/health` responds, tasks reach `completed` status). The timeout is
+   per-call: pass a `std::chrono::seconds` value as the second argument to override the
+   default for slow fault types (e.g. network-partition recovery often needs 60–120 s):
+
+   ```cpp
+   // Default 30s
+   const bool ok = wait_until([&]() { return client_->is_healthy(); });
+
+   // Custom timeout for a slow-recovery scenario
+   const bool recovered = wait_until(
+       [&]() { return client_->is_healthy(); },
+       std::chrono::seconds{120});
+   ```
+
+   See `include/projectcharybdis/test_helpers.hpp` for the full signature.
 
 4. **Clean up** — Regardless of assertion outcome, Charybdis `DELETE`s the fault via
    `/v1/chaos/<fault-id>`. Cleanup must happen even on test failure to avoid leaving

@@ -13,6 +13,18 @@ inputs:
     description: Output folder for conan install (e.g. build/debug)
     required: false
     default: ""
+  gcc_version:
+    description: GCC major version passed to conan -s compiler.version when compiler=gcc
+    required: false
+    default: "14"
+  clang_version:
+    description: Clang major version passed to conan -s compiler.version when compiler=clang
+    required: false
+    default: "18"
+  cppstd:
+    description: C++ standard passed to conan -s compiler.cppstd
+    required: false
+    default: "20"
 
 runs:
   using: composite
@@ -27,6 +39,9 @@ runs:
         BUILD_TYPE: ${{ inputs.build_type }}
         COMPILER: ${{ inputs.compiler }}
         OUTPUT_FOLDER: ${{ inputs.output_folder }}
+        GCC_VERSION: ${{ inputs.gcc_version }}
+        CLANG_VERSION: ${{ inputs.clang_version }}
+        CPPSTD: ${{ inputs.cppstd }}
       run: |
         BUILD_TYPE_CAP=$(echo "${BUILD_TYPE}" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
         FOLDER="${OUTPUT_FOLDER:-build/${BUILD_TYPE}}"
@@ -36,16 +51,16 @@ runs:
             --build=missing \
             -s build_type="${BUILD_TYPE_CAP}" \
             -s compiler=clang \
-            -s compiler.version=18 \
+            -s compiler.version="${CLANG_VERSION}" \
             -s compiler.libcxx=libstdc++11 \
-            -s compiler.cppstd=20
+            -s compiler.cppstd="${CPPSTD}"
         else
           conan install . \
             --output-folder="${FOLDER}" \
             --build=missing \
             -s build_type="${BUILD_TYPE_CAP}" \
             -s compiler=gcc \
-            -s compiler.version=14 \
+            -s compiler.version="${GCC_VERSION}" \
             -s compiler.libcxx=libstdc++11 \
-            -s compiler.cppstd=20
+            -s compiler.cppstd="${CPPSTD}"
         fi

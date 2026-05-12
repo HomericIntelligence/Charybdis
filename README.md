@@ -138,6 +138,34 @@ Install pre-commit hooks to enforce formatting and commit message conventions:
 pre-commit install
 ```
 
+## Container Image
+
+A pre-built runtime image is published to GitHub Container Registry on every push to
+`main` (and tagged release):
+
+- **Image:** `ghcr.io/homericintelligence/projectcharybdis`
+- **Tags:**
+  - `latest` — most recent build from `main`
+  - `sha-<short-sha>` — pinned to a specific commit SHA
+  - `vX.Y.Z` — published with each `vX.Y.Z` git tag (see Release Process in CONTRIBUTING.md)
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/homericintelligence/projectcharybdis:latest
+
+# Or pin to a commit SHA for reproducibility
+docker pull ghcr.io/homericintelligence/projectcharybdis:sha-abc1234
+
+# Run the test suite against a remote Agamemnon
+docker run --rm \
+  -e AGAMEMNON_URL=http://agamemnon.internal:8080 \
+  -e NATS_URL=nats://nats.internal:4222 \
+  ghcr.io/homericintelligence/projectcharybdis:latest
+```
+
+The image is built from the multi-stage `Dockerfile` at the repo root using the Conan
+`default` (Release) profile and runs as a non-root user.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming, commit message format, pull
