@@ -24,7 +24,11 @@ For an overview of the full ecosystem, see the
 - [GitHub CLI](https://cli.github.com/) (`gh`)
 - [Pixi](https://pixi.sh/) for environment management
 - [Just](https://just.systems/) as the command runner
-- C++20 compiler (GCC 12+ or Clang 15+)
+- C++20 compiler (GCC 12+ or Clang 15+) — provided automatically by `pixi shell`
+  (via `cxx-compiler >= 1.7` in `pixi.toml`); manual compiler installation is only
+  needed if you build outside the Pixi environment.
+- [Conan 2.x](https://docs.conan.io/2/) for C++ dependency management
+  (`pip install 'conan>=2.0'`); see [Conan Setup](#conan-setup) below.
 
 ### Environment Setup
 
@@ -42,6 +46,27 @@ just build
 # Run tests to verify setup
 just test
 ```
+
+### Conan Setup
+
+Dependencies (GoogleTest, cpp-httplib, nlohmann_json) are managed by Conan 2.x. The
+Pixi environment ships Conan, so `pixi shell` is sufficient for most contributors. To
+bootstrap manually:
+
+```bash
+# 1. Install Conan 2.x (skipped if you use `pixi shell`)
+pip install 'conan>=2.0'
+
+# 2. Detect a default profile (creates ~/.conan2/profiles/default)
+conan profile detect --force
+
+# 3. Install dependencies into the build folder used by the debug preset
+conan install . --output-folder=build/debug --profile=conan/profiles/debug --build=missing
+```
+
+After Conan finishes, run `cmake --preset debug` followed by `just build` / `just test`.
+See [Conan Profiles](#conan-profiles) below for the difference between the `default`
+(Release) and `debug` profiles.
 
 ### Install Pre-commit Hooks
 
@@ -255,6 +280,55 @@ gh pr create --title "[Type] Brief description" --body "Closes #<issue-number>"
 ### Never Push Directly to Main
 
 The `main` branch is protected. All changes must go through pull requests.
+
+### CI Gates
+
+PRs must pass these required checks before merge:
+
+- **Build + Test** — `build-test.yml` (GCC and Clang).
+- **Static analysis** — clang-tidy via `static-analysis.yml`.
+- **Sanitizers** — ASan/UBSan via `sanitizers.yml`.
+- **CodeQL (SAST)** — `.github/workflows/codeql.yml` runs on every PR. Findings block
+  merge until resolved or triaged. To reproduce locally, install the
+  [CodeQL CLI](https://docs.github.com/en/code-security/codeql-cli) and run:
+
+  ```bash
+  codeql database create --language=cpp --command "cmake --build --preset debug" db
+  codeql analyze db --format=sarif-latest --output=results.sarif
+  ```
+
+  False positives should be triaged by the security maintainers; open an issue with
+  the SARIF excerpt rather than disabling the rule unilaterally.
+- **Secrets scan** — gitleaks via `_required.yml` (`security-secrets-scan` job).
+- **Container build + Trivy scan** — `container.yml` and the `release.yml` Trivy gate.
+
+## Release Process
+
+Releases are cut from `main` by tagging a semver `vX.Y.Z` tag. The release workflow
+(`.github/workflows/release.yml`) is triggered by `v*.*.*` tag pushes.
+
+```bash
+# After the release PR (CHANGELOG.md update) is merged to main
+git checkout main && git pull origin main
+git tag -a v0.1.0 -m "Release v0.1.0"
+git push origin v0.1.0
+```
+
+The first release (`v0.1.0`) is the bootstrap step that proves the workflow end-to-end.
+Subsequent releases follow the same procedure with the next semver tag.
+
+## Roadmap Maintenance
+
+`ROADMAP.md` mirrors the GitHub milestones. To keep them in sync:
+
+1. **When closing a milestone issue**, check off the matching item in `ROADMAP.md`
+   in the same PR (or the PR that closes the issue). Do not leave roadmap updates
+   for a separate cleanup pass.
+2. **When creating a new milestone**, add a corresponding section to `ROADMAP.md`
+   in the same change set (or a follow-up PR opened the same day).
+3. **When renaming or retargeting a milestone**, update `ROADMAP.md` to match.
+
+Drift between `ROADMAP.md` and the milestone list is treated as a documentation bug.
 
 ## Code Review
 
