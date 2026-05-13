@@ -27,7 +27,19 @@ class HttpTestClient {
   // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result)
   static constexpr std::size_t kMaxBodyBytes = 10 * 1024 * 1024;  // 10 MB
 
-  explicit HttpTestClient(const std::string& base_url = "http://localhost:8080");
+  /// Default connection timeout, in seconds. Used when callers do not override
+  /// `connection_timeout_sec` in the constructor.
+  static constexpr int kDefaultConnectionTimeoutSec = 5;
+  /// Default read timeout, in seconds. Used when callers do not override
+  /// `read_timeout_sec` in the constructor. Tests that exercise high-latency
+  /// fault injection (e.g. `POST /v1/chaos/latency`) should pass a larger value
+  /// to avoid false-positive timeouts.
+  static constexpr int kDefaultReadTimeoutSec = 10;
+
+  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+  explicit HttpTestClient(const std::string& base_url = "http://localhost:8080",
+                          int connection_timeout_sec = kDefaultConnectionTimeoutSec,
+                          int read_timeout_sec = kDefaultReadTimeoutSec);
   ~HttpTestClient();
 
   /// HTTP response. `body` is `{"error": "response_too_large"}` if the raw response
@@ -50,9 +62,6 @@ class HttpTestClient {
   [[nodiscard]] bool is_healthy();
 
  private:
-  static constexpr int kConnectionTimeoutSec = 5;
-  static constexpr int kReadTimeoutSec = 10;
-
   std::string host_;
   int port_;
   std::unique_ptr<httplib::Client> client_;

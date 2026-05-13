@@ -22,8 +22,9 @@ nlohmann::json parse_body(const httplib::Response& res) {
 }
 }  // namespace
 
-// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-HttpTestClient::HttpTestClient(const std::string& base_url) {
+// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init,bugprone-easily-swappable-parameters)
+HttpTestClient::HttpTestClient(const std::string& base_url, int connection_timeout_sec,
+                               int read_timeout_sec) {
   // Parse "http://host:port" into host and port
   const std::regex url_re(R"(https?://([^:]+):(\d+))");
   // NOLINTNEXTLINE(misc-const-correctness) — mutated as regex_match output parameter
@@ -50,8 +51,8 @@ HttpTestClient::HttpTestClient(const std::string& base_url) {
     port_ = 8080;
   }
   client_ = std::make_unique<httplib::Client>(host_, port_);
-  client_->set_connection_timeout(kConnectionTimeoutSec);
-  client_->set_read_timeout(kReadTimeoutSec);
+  client_->set_connection_timeout(connection_timeout_sec);
+  client_->set_read_timeout(read_timeout_sec);
 }
 
 HttpTestClient::~HttpTestClient() = default;

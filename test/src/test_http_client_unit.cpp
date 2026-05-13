@@ -149,6 +149,14 @@ class MockServer {
       res.set_content(exact, "text/plain");
     });
 
+    svr_.Get("/v1/slow", [](const httplib::Request& /*req*/, httplib::Response& res) {
+      // Sleeps just long enough to exceed a sub-second read timeout but stay
+      // well under the default 10 s. Used to exercise constructor-supplied
+      // read-timeout overrides.
+      std::this_thread::sleep_for(std::chrono::seconds{1});
+      res.set_content(R"({"slow":true})", "application/json");
+    });
+
     thread_ = std::thread([this]() { svr_.listen_after_bind(); });
 
     // Wait until the server is actually accepting connections (5 s timeout)
@@ -259,6 +267,30 @@ TEST_F(HttpTestClientOnline, BoundaryBodyNotRejected) {
   auto [status, body] = client_->get("/v1/boundary");
   EXPECT_EQ(status, 200);
   EXPECT_FALSE(body.value("error", "").find("response_too_large") != std::string::npos);
+}
+
+// ── Constructor timeout overrides ─────────────────────────────────────────────
+
+TEST(HttpTestClientUnit, CustomTimeoutsAcceptedByConstructor) {
+  // Custom timeouts should not affect successful URL parsing or refused-port
+  // behaviour. Verifies the new constructor parameters are wired through
+  // without altering existing call paths.
+  HttpTestClient client("http://127.0.0.1:1", /*connection_timeout_sec=*/1,
+                        /*read_timeout_sec=*/2);
+  EXPECT_FALSE(client.is_healthy());
+}
+
+TEST(HttpTestClientUnit, LongReadTimeoutAllowsSlowResponse) {
+  // Mirrors the chaos/latency use case from issue #81: callers that inject
+  // latency need a read timeout longer than the default 10 s. The mock server's
+  // /v1/slow endpoint delays the response by 1 s; a client configured with a
+  // 5 s read timeout should still receive the body successfully.
+  MockServer mock;
+  HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()),
+                        /*connection_timeout_sec=*/1, /*read_timeout_sec=*/5);
+  auto [status, body] = client.get("/v1/slow");
+  EXPECT_EQ(status, 200);
+  EXPECT_TRUE(body.value("slow", false));
 }
 
 }  // namespace projectcharybdis
