@@ -100,3 +100,15 @@ jobs:
           NATS_URL: nats://localhost:4222
         # AGAMEMNON_URL is exported by the previous step via $GITHUB_ENV
         run: ctest --preset integration
+
+      - name: Upload ctest logs on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ctest-logs
+          path: |
+            build/ci/Testing/Temporary/LastTest.log
+            build/ci/Testing/Temporary/LastTestsFailed.log
+            build/ci/Testing/Temporary/CTestCostData.txt
+          if-no-files-found: ignore
+          retention-days: 7
