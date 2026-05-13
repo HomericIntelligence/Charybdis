@@ -80,13 +80,11 @@ TEST_F(MalformedMessageTest, ChaosTestEmptyRejectsNonEmptyBody) {
   EXPECT_EQ(empty_status, 400);
 
   // Non-empty JSON: must also be rejected (no fault record created).
-  auto [json_status, _j] =
-      client_->post_raw("/v1/chaos/test-empty", R"({"active":true})");
+  auto [json_status, _j] = client_->post_raw("/v1/chaos/test-empty", R"({"active":true})");
   EXPECT_EQ(json_status, 400);
 
   // Non-empty plain text: same rejection.
-  auto [text_status, _t] =
-      client_->post_raw("/v1/chaos/test-empty", "anything", "text/plain");
+  auto [text_status, _t] = client_->post_raw("/v1/chaos/test-empty", "anything", "text/plain");
   EXPECT_EQ(text_status, 400);
 
   // NOLINTNEXTLINE(readability-implicit-bool-conversion)
