@@ -17,6 +17,10 @@ build: deps
 test:
   ctest --preset debug --output-on-failure
 
+# Standalone smoke tests for scripts/mock-agamemnon.py (no conan/cmake needed)
+test-mock:
+  python3 scripts/test-mock-agamemnon.py
+
 lint:
   ./scripts/lint.sh
 

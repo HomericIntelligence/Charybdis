@@ -13,7 +13,7 @@ integration tests pass without a live HomericIntelligence mesh:
   POST /v1/agents                  → creates an agent record
   POST /v1/teams/<id>/tasks        → creates a task (pending)
   GET  /v1/tasks                   → lists tasks; marks completed only when no queue-starve active
-  POST /v1/chaos/test-empty        → accepts any body, returns 400 on empty JSON
+  POST /v1/chaos/test-empty        → diagnostic only: 400 on empty body, 400 on non-empty body
   POST /v1/agents (malformed)      → returns 400 on bad content-type or unparseable body
 
 Chaos effects simulated:
@@ -128,8 +128,18 @@ class AgamemnonHandler(BaseHTTPRequestHandler):
             if chaos_type not in CHAOS_TYPES:
                 self._send(404, {"error": "unknown chaos type"})
                 return
+            # /v1/chaos/test-empty is a diagnostic endpoint used only to
+            # exercise empty-body handling. It must reject ANY body — empty or
+            # non-empty — with 400 so callers cannot accidentally create a
+            # 'test-empty' fault record. See issue #89.
+            if chaos_type == "test-empty":
+                if empty:
+                    self._send(400, {"error": "empty body"})
+                else:
+                    self._send(400, {"error": "test-empty rejects non-empty body"})
+                return
             if empty:
-                # test-empty and other endpoints: empty body → 400
+                # Real chaos endpoints: empty body → 400
                 self._send(400, {"error": "empty body"})
                 return
             fault_id = str(uuid.uuid4())

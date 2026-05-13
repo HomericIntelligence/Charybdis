@@ -71,6 +71,26 @@ TEST_F(MalformedMessageTest, EmptyBodies) {
   EXPECT_TRUE(client_->is_healthy());
 }
 
+// /v1/chaos/test-empty is a diagnostic endpoint and must reject non-empty
+// bodies with 400 — it must never create a 'test-empty' fault record.
+// Regression coverage for issue #89.
+TEST_F(MalformedMessageTest, ChaosTestEmptyRejectsNonEmptyBody) {
+  // Empty body: documented contract is 400.
+  auto [empty_status, _e] = client_->post_raw("/v1/chaos/test-empty", "");
+  EXPECT_EQ(empty_status, 400);
+
+  // Non-empty JSON: must also be rejected (no fault record created).
+  auto [json_status, _j] = client_->post_raw("/v1/chaos/test-empty", R"({"active":true})");
+  EXPECT_EQ(json_status, 400);
+
+  // Non-empty plain text: same rejection.
+  auto [text_status, _t] = client_->post_raw("/v1/chaos/test-empty", "anything", "text/plain");
+  EXPECT_EQ(text_status, 400);
+
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+  EXPECT_TRUE(client_->is_healthy());
+}
+
 // Wrong content-type header
 TEST_F(MalformedMessageTest, WrongContentType) {
   const nlohmann::json valid = {{"name", "wrong-ct"}};
