@@ -37,16 +37,25 @@ jobs:
       - name: Build
         run: cmake --build --preset debug
 
+  action-pins:
+    name: action-pins
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: "Verify all uses: references are SHA-pinned"
+        run: ./scripts/check-action-pins.sh
+
   check-all:
     name: All Static Analysis Checks
     runs-on: ubuntu-24.04
-    needs: [clang-format, clang-tidy]
+    needs: [clang-format, clang-tidy, action-pins]
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
           if [ "${{ needs.clang-format.result }}" != "success" ] || \
-             [ "${{ needs.clang-tidy.result }}" != "success" ]; then
+             [ "${{ needs.clang-tidy.result }}" != "success" ] || \
+             [ "${{ needs.action-pins.result }}" != "success" ]; then
             echo "Static analysis failed"; exit 1
           fi
           echo "All checks passed"

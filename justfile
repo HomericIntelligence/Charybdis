@@ -20,6 +20,10 @@ test:
 lint:
   ./scripts/lint.sh
 
+# Verify every `uses:` in workflows/composite-actions is SHA-pinned (#65)
+check-action-pins:
+  ./scripts/check-action-pins.sh
+
 format:
   ./scripts/format.sh
 

@@ -45,3 +45,14 @@ repos:
         entry: '^\s*continue-on-error:\s*true\s*$'
         files: ^\.github/workflows/.*\.ya?ml$
         pass_filenames: true
+
+      - id: check-action-pins
+        name: "verify all GitHub Action uses: are SHA-pinned"
+        description: >
+          Every `uses: owner/repo@<ref>` in `.github/workflows/` and
+          `.github/actions/` must reference an immutable 40-char commit SHA
+          with a trailing `# v<tag>` comment. See #65.
+        language: system
+        entry: ./scripts/check-action-pins.sh
+        files: ^\.github/(workflows|actions)/.*\.ya?ml$
+        pass_filenames: false
