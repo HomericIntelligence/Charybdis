@@ -87,22 +87,44 @@
     {"name": "ci", "configurePreset": "ci"}
   ],
   "testPresets": [
-    {"name": "debug", "configurePreset": "debug", "output": {"outputOnFailure": true}},
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": {"outputOnFailure": true},
+      "filter": {"exclude": {"label": "REQUIRES_NATS"}}
+    },
     {
       "name": "asan",
       "configurePreset": "asan",
       "output": {"outputOnFailure": true},
-      "execution": {"timeout": 600}
+      "execution": {"timeout": 600},
+      "filter": {"exclude": {"label": "REQUIRES_NATS"}}
     },
     {
       "name": "tsan",
       "configurePreset": "tsan",
       "output": {"outputOnFailure": true},
-      "execution": {"timeout": 600}
+      "execution": {"timeout": 600},
+      "filter": {"exclude": {"label": "REQUIRES_NATS"}}
     },
-    {"name": "release", "configurePreset": "release", "output": {"outputOnFailure": true}},
-    {"name": "coverage", "configurePreset": "coverage", "output": {"outputOnFailure": true}},
-    {"name": "ci", "configurePreset": "ci", "output": {"outputOnFailure": true}},
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {"outputOnFailure": true},
+      "filter": {"exclude": {"label": "REQUIRES_NATS"}}
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
+      "output": {"outputOnFailure": true},
+      "filter": {"exclude": {"label": "REQUIRES_NATS"}}
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci",
+      "output": {"outputOnFailure": true},
+      "filter": {"exclude": {"label": "REQUIRES_NATS"}}
+    },
     {
       "name": "integration",
       "configurePreset": "ci",
