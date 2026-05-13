@@ -23,9 +23,22 @@ Chaos effects simulated:
 
 All state is in-process (no persistence); the stub is single-threaded but
 that is fine for the sequential test suite.
+
+Port selection:
+  Usage: mock-agamemnon.py [PORT]
+  - If PORT is given on the command line, that port is used.
+  - Else if $MOCK_AGAMEMNON_PORT is set and non-empty, that port is used.
+  - Else port 0 is requested, letting the kernel assign an ephemeral port.
+    This is the recommended mode for CI: it avoids collisions when multiple
+    jobs run in parallel on the same runner.
+
+The actual bound port is always printed to stdout as:
+  "mock-agamemnon listening on :<port>"
+Callers must parse this line to discover the port when using ephemeral mode.
 """
 
 import json
+import os
 import uuid
 import sys
 import time
@@ -204,10 +217,34 @@ def _is_json(content_type: str) -> bool:
     return "application/json" in content_type or content_type == ""
 
 
+def _resolve_requested_port() -> int:
+    """Resolve the port to bind to, preferring CLI arg over env var.
+
+    Precedence:
+      1. sys.argv[1] if provided
+      2. $MOCK_AGAMEMNON_PORT if set and non-empty
+      3. 0 (kernel-assigned ephemeral port) — avoids CI port collisions
+         when multiple jobs run on the same runner.
+
+    Callers should parse the actual bound port from this script's stdout
+    (the "mock-agamemnon listening on :<port>" line) rather than assuming
+    a fixed port.
+    """
+    if len(sys.argv) > 1:
+        return int(sys.argv[1])
+    env_port = os.environ.get("MOCK_AGAMEMNON_PORT", "").strip()
+    if env_port:
+        return int(env_port)
+    return 0
+
+
 def main() -> None:
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
-    server = HTTPServer(("0.0.0.0", port), AgamemnonHandler)
-    print(f"mock-agamemnon listening on :{port}", flush=True)
+    requested_port = _resolve_requested_port()
+    server = HTTPServer(("0.0.0.0", requested_port), AgamemnonHandler)
+    # When requested_port == 0 the kernel assigns an ephemeral port; read
+    # the actual bound port from the socket so callers can discover it.
+    bound_port = server.server_address[1]
+    print(f"mock-agamemnon listening on :{bound_port}", flush=True)
     server.serve_forever()
 
 
