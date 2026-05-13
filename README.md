@@ -55,20 +55,44 @@ ctest --preset debug
 ## Environment Variables
 
 These variables configure which services Charybdis connects to during testing.
-Both are optional; defaults point to local development instances.
+All are optional; defaults point to local development instances.
 
-| Variable        | Required | Default                    | Description                          |
-|-----------------|----------|----------------------------|--------------------------------------|
-| `AGAMEMNON_URL` | No       | `http://localhost:8080`    | Base URL of the Agamemnon chaos API  |
-| `NATS_URL`      | No       | `nats://localhost:4222`    | NATS server used for JetStream tests |
+| Variable                   | Required | Default                    | Description                                                                 |
+|----------------------------|----------|----------------------------|-----------------------------------------------------------------------------|
+| `AGAMEMNON_URL`            | No       | `http://localhost:8080`    | Base URL of the Agamemnon chaos API                                         |
+| `NATS_URL`                 | No       | `nats://localhost:4222`    | NATS server used for JetStream tests                                        |
+| `CHAOS_RECOVERY_TIMEOUT_S` | No       | `10`                       | Seconds R03 waits for Agamemnon to come back after a `kill` fault          |
 
 Example:
 
 ```bash
 export AGAMEMNON_URL=http://agamemnon.internal:8080
 export NATS_URL=nats://nats.internal:4222
+export CHAOS_RECOVERY_TIMEOUT_S=30   # raise if your supervisor restart is slow
 just test
 ```
+
+### R03 kill-test restart supervisor
+
+`ChaosResilienceTest.R03KillServiceHealthDegrades` asserts that Agamemnon's
+`/v1/health` endpoint recovers after a `kill` fault. The chaos endpoint itself
+does **not** restart Agamemnon — it only kills the process. Recovery therefore
+requires an external supervisor:
+
+* `systemd` unit with `Restart=on-failure`
+* Kubernetes pod (any `restartPolicy` other than `Never`)
+* Docker `--restart=always` / `unless-stopped`
+* equivalent process supervisor (`s6`, `runit`, `supervisord`, …)
+
+Environments without such a supervisor must exclude R03 from their ctest run:
+
+```bash
+ctest --label-exclude REQUIRES_RESTART_SUPERVISOR
+```
+
+Slower restart policies (back-off, image pull, readiness gates) should raise
+`CHAOS_RECOVERY_TIMEOUT_S` to a value that comfortably exceeds the supervisor's
+worst-case restart latency.
 
 ## Architecture
 

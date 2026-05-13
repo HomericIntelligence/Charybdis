@@ -1,6 +1,8 @@
 #pragma once
 
 #include <chrono>
+#include <cstdlib>
+#include <exception>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <thread>
@@ -19,6 +21,32 @@ inline std::string nats_url() {
   // NOLINTNEXTLINE(concurrency-mt-unsafe)
   const char* env = std::getenv("NATS_URL");
   return (env != nullptr) ? std::string{env} : std::string{"nats://localhost:4222"};
+}
+
+/// Get chaos kill-fault recovery timeout (seconds) from environment, or default.
+///
+/// Recovery after a kill fault depends on an external supervisor (systemd unit
+/// with Restart=on-failure, Kubernetes pod restart, Docker --restart=always,
+/// etc.) bringing Agamemnon back up. The default 10s window is appropriate for
+/// fast-restart supervisors; slower restart policies (back-off, image pull,
+/// readiness probes) require a longer window. Non-positive or unparseable
+/// values fall back to the default.
+inline std::chrono::seconds chaos_recovery_timeout() {
+  constexpr std::chrono::seconds kDefault{10};
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  const char* env = std::getenv("CHAOS_RECOVERY_TIMEOUT_S");
+  if (env == nullptr || *env == '\0') {
+    return kDefault;
+  }
+  try {
+    const int parsed = std::stoi(env);
+    if (parsed <= 0) {
+      return kDefault;
+    }
+    return std::chrono::seconds{parsed};
+  } catch (const std::exception&) {
+    return kDefault;
+  }
 }
 
 /// Generate a random string for test isolation

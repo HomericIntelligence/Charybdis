@@ -38,14 +38,33 @@ target_link_libraries(${PROJECT_NAME}_integration_tests
     nlohmann_json::nlohmann_json
     GTest::gtest_main)
 
-# Discover all integration tests except R04 (which needs an extra label).
+# Discover integration tests, partitioning by capability requirements.
 # gtest_discover_tests runs POST_BUILD, so set_tests_properties cannot be used
-# after the call — tests don't exist at configure time. Instead, use two
-# separate discovery calls with gtest_filter to partition the test suite.
+# after the call — tests don't exist at configure time. Instead, use separate
+# discovery calls with gtest_filter to partition the test suite by labels.
+#
+# Partition:
+#   * .nats       — needs Agamemnon + NATS only
+#   * .supervisor — additionally needs an external restart supervisor (R03)
+#   * .myrmidon   — additionally needs a live myrmidon pull consumer (R04)
+set(_charybdis_supervisor_filter "ChaosResilienceTest.R03KillServiceHealthDegrades")
+set(_charybdis_myrmidon_filter "ChaosResilienceTest.R04_QueueStarve_ConsumerStalls")
+
 gtest_discover_tests(${PROJECT_NAME}_integration_tests
     TEST_SUFFIX .nats
-    EXTRA_ARGS "--gtest_filter=-ChaosResilienceTest.R04_QueueStarve_ConsumerStalls"
+    EXTRA_ARGS "--gtest_filter=-${_charybdis_supervisor_filter}:${_charybdis_myrmidon_filter}"
     PROPERTIES LABELS "REQUIRES_NATS")
+
+# R03KillServiceHealthDegrades additionally requires an external restart supervisor
+# (systemd, Kubernetes, Docker --restart=always) to bring Agamemnon back after the
+# kill fault. Without one, the process stays dead and the recovery assertion will
+# always time out. CI environments without a supervisor can skip with:
+#   ctest --label-exclude REQUIRES_RESTART_SUPERVISOR
+# Recovery timeout is tunable via CHAOS_RECOVERY_TIMEOUT_S (seconds).
+gtest_discover_tests(${PROJECT_NAME}_integration_tests
+    TEST_SUFFIX .supervisor
+    EXTRA_ARGS "--gtest_filter=${_charybdis_supervisor_filter}"
+    PROPERTIES LABELS "REQUIRES_NATS;REQUIRES_RESTART_SUPERVISOR")
 
 # R04_QueueStarve_ConsumerStalls additionally requires a live myrmidon pull consumer.
 # Without one, the task will never advance to 'completed' and the recovery assertion
@@ -53,5 +72,5 @@ gtest_discover_tests(${PROJECT_NAME}_integration_tests
 #   ctest --label-exclude REQUIRES_MYRMIDON
 gtest_discover_tests(${PROJECT_NAME}_integration_tests
     TEST_SUFFIX .myrmidon
-    EXTRA_ARGS "--gtest_filter=ChaosResilienceTest.R04_QueueStarve_ConsumerStalls"
+    EXTRA_ARGS "--gtest_filter=${_charybdis_myrmidon_filter}"
     PROPERTIES LABELS "REQUIRES_NATS;REQUIRES_MYRMIDON")

@@ -2,12 +2,15 @@
  * @file test_helpers_unit.cpp
  * @brief Unit tests for test_helpers.hpp inline utilities.
  *
- * Exercises agamemnon_url(), nats_url(), random_suffix(), and wait_until()
- * to ensure the include/projectcharybdis/test_helpers.hpp lines are covered.
+ * Exercises agamemnon_url(), nats_url(), chaos_recovery_timeout(),
+ * random_suffix(), and wait_until() to ensure the
+ * include/projectcharybdis/test_helpers.hpp lines are covered.
  */
 
 #include "projectcharybdis/test_helpers.hpp"
 
+#include <chrono>
+#include <cstdlib>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -26,6 +29,38 @@ TEST(TestHelpersUnit, NatsUrlDefaultsToLocalhost) {
   const std::string url = nats_url();
   EXPECT_FALSE(url.empty());
   EXPECT_NE(url.find("localhost"), std::string::npos);
+}
+
+TEST(TestHelpersUnit, ChaosRecoveryTimeoutDefaultsTo10s) {
+  // Unset the var so the default branch is exercised.
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::unsetenv("CHAOS_RECOVERY_TIMEOUT_S");
+  EXPECT_EQ(chaos_recovery_timeout(), std::chrono::seconds{10});
+}
+
+TEST(TestHelpersUnit, ChaosRecoveryTimeoutHonorsValidEnv) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::setenv("CHAOS_RECOVERY_TIMEOUT_S", "45", 1);
+  EXPECT_EQ(chaos_recovery_timeout(), std::chrono::seconds{45});
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::unsetenv("CHAOS_RECOVERY_TIMEOUT_S");
+}
+
+TEST(TestHelpersUnit, ChaosRecoveryTimeoutFallsBackOnGarbage) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::setenv("CHAOS_RECOVERY_TIMEOUT_S", "not-a-number", 1);
+  EXPECT_EQ(chaos_recovery_timeout(), std::chrono::seconds{10});
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::setenv("CHAOS_RECOVERY_TIMEOUT_S", "0", 1);
+  EXPECT_EQ(chaos_recovery_timeout(), std::chrono::seconds{10});
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::setenv("CHAOS_RECOVERY_TIMEOUT_S", "-5", 1);
+  EXPECT_EQ(chaos_recovery_timeout(), std::chrono::seconds{10});
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::setenv("CHAOS_RECOVERY_TIMEOUT_S", "", 1);
+  EXPECT_EQ(chaos_recovery_timeout(), std::chrono::seconds{10});
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::unsetenv("CHAOS_RECOVERY_TIMEOUT_S");
 }
 
 TEST(TestHelpersUnit, RandomSuffixIsNonEmpty) {
