@@ -49,6 +49,13 @@ class HttpTestClient {
 
   [[nodiscard]] bool is_healthy();
 
+  /// Test-only accessor: returns a stable pointer to the underlying
+  /// `httplib::Client`. Used by the single-construction unit test (issue #82)
+  /// to assert that `client_` is created exactly once and reused for the
+  /// lifetime of this object — not reconstructed on every get/post/del call.
+  /// The pointer must not be used to mutate `client_`'s ownership.
+  [[nodiscard]] const httplib::Client* test_client_ptr() const { return client_.get(); }
+
  private:
   static constexpr int kConnectionTimeoutSec = 5;
   static constexpr int kReadTimeoutSec = 10;

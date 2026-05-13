@@ -261,4 +261,73 @@ TEST_F(HttpTestClientOnline, BoundaryBodyNotRejected) {
   EXPECT_FALSE(body.value("error", "").find("response_too_large") != std::string::npos);
 }
 
+// ── client_ single-construction (#82) ─────────────────────────────────────────
+//
+// Policy (feedback_http_client_lifetime_object.md): connection-holding wrappers
+// must hold the connection as a member for the object's lifetime, not construct
+// per-call. We assert this directly: the address of the underlying
+// `httplib::Client` returned by `test_client_ptr()` (a test-only accessor added
+// for #82) must remain stable across get/post/del/is_healthy calls. If a
+// regression made `HttpTestClient` reconstruct `client_` on each call, the
+// pointer would change and these tests would fail.
+
+TEST_F(HttpTestClientOnline, ClientPointerStableAcrossGetPostDel) {
+  // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+  const httplib::Client* before = client_->test_client_ptr();
+  ASSERT_NE(before, nullptr);
+
+  auto [gs, gb] = client_->get("/v1/json");
+  EXPECT_EQ(gs, 200);
+  EXPECT_EQ(client_->test_client_ptr(), before);
+
+  auto [ps, pb] = client_->post("/v1/echo", {{"k", "v"}});
+  EXPECT_EQ(ps, 200);
+  EXPECT_EQ(client_->test_client_ptr(), before);
+
+  auto [ds, db] = client_->del("/v1/item");
+  EXPECT_EQ(ds, 200);
+  EXPECT_EQ(client_->test_client_ptr(), before);
+}
+
+namespace {
+
+// Helper extracted to keep cognitive-complexity below the clang-tidy threshold
+// in the multi-round single-construction test.
+void run_round_and_assert_stable(HttpTestClient& client, const httplib::Client* baseline,
+                                 int round) {
+  EXPECT_EQ(client.get("/v1/json").status, 200);
+  EXPECT_EQ(client.post("/v1/echo", {{"i", round}}).status, 200);
+  EXPECT_EQ(client.del("/v1/item").status, 200);
+  EXPECT_EQ(client.test_client_ptr(), baseline);
+}
+
+}  // namespace
+
+TEST_F(HttpTestClientOnline, ClientPointerStableAcrossManyCalls) {
+  // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+  const httplib::Client* before = client_->test_client_ptr();
+  ASSERT_NE(before, nullptr);
+
+  constexpr int kRounds = 5;
+  for (int round = 0; round < kRounds; ++round) {
+    run_round_and_assert_stable(*client_, before, round);
+  }
+}
+
+TEST_F(HttpTestClientOnline, ClientPointerStableAcrossIsHealthyAndCalls) {
+  // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+  const httplib::Client* before = client_->test_client_ptr();
+  ASSERT_NE(before, nullptr);
+
+  // is_healthy() internally calls get("/v1/health") — same underlying client_.
+  EXPECT_TRUE(client_->is_healthy());
+  EXPECT_EQ(client_->test_client_ptr(), before);
+
+  EXPECT_EQ(client_->get("/v1/json").status, 200);
+  EXPECT_EQ(client_->test_client_ptr(), before);
+
+  EXPECT_EQ(client_->post("/v1/echo", {{"k", "v"}}).status, 200);
+  EXPECT_EQ(client_->test_client_ptr(), before);
+}
+
 }  // namespace projectcharybdis
