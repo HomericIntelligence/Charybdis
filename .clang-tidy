@@ -14,7 +14,21 @@ Checks: >
   -hicpp-no-array-decay,
   -misc-include-cleaner,
   -abseil-*
-WarningsAsErrors: '*'
+WarningsAsErrors: >
+  *,
+  -fuchsia-*,
+  -llvm-*,
+  -llvmlibc-*,
+  -google-readability-todo,
+  -readability-magic-numbers,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -modernize-use-trailing-return-type,
+  -altera-*,
+  -cert-err58-cpp,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -hicpp-no-array-decay,
+  -misc-include-cleaner,
+  -abseil-*
 HeaderFilterRegex: '/ProjectCharybdis/(include|src|test)/'
 FormatStyle: file
 ...
