@@ -50,23 +50,53 @@ jobs:
         run: cmake --build --preset ci
 
       - name: Start mock Agamemnon
-        run: python3 scripts/mock-agamemnon.py 8080 &
-        # Give the mock a moment to bind before tests connect
+        # Bind to an ephemeral port (port 0) so parallel jobs on the same
+        # runner cannot collide on a fixed port (issue #91). The script
+        # prints the actual bound port to stdout; we tee it to a log file
+        # and extract the port in the next step.
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/mock-agamemnon"
+          ( python3 scripts/mock-agamemnon.py \
+              > "$RUNNER_TEMP/mock-agamemnon/stdout.log" 2>&1 ) &
+          echo $! > "$RUNNER_TEMP/mock-agamemnon/pid"
         env:
           PYTHONUNBUFFERED: "1"
 
       - name: Wait for mock Agamemnon to be ready
         run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/mock-agamemnon/stdout.log"
+          # Wait for the "listening on :<port>" line to appear (up to ~10s).
+          port=""
+          for i in $(seq 1 40); do
+            if [ -s "$log" ]; then
+              port=$(grep -oE 'listening on :[0-9]+' "$log" \
+                       | head -n1 \
+                       | sed 's/^listening on ://') || true
+              if [ -n "$port" ]; then
+                break
+              fi
+            fi
+            sleep 0.25
+          done
+          if [ -z "$port" ]; then
+            echo "mock-agamemnon never printed bound port"; cat "$log" || true; exit 1
+          fi
+          echo "MOCK_AGAMEMNON_PORT=$port" >> "$GITHUB_ENV"
+          echo "AGAMEMNON_URL=http://localhost:$port" >> "$GITHUB_ENV"
           for i in $(seq 1 20); do
-            if curl -sf http://localhost:8080/v1/health | grep -q '"ok"'; then
-              echo "mock-agamemnon ready"; exit 0
+            if curl -sf "http://localhost:$port/v1/health" | grep -q '"ok"'; then
+              echo "mock-agamemnon ready on :$port"; exit 0
             fi
             sleep 0.5
           done
-          echo "mock-agamemnon did not become ready in time"; exit 1
+          echo "mock-agamemnon did not become ready in time"
+          cat "$log" || true
+          exit 1
 
       - name: Run integration tests
         env:
-          AGAMEMNON_URL: http://localhost:8080
           NATS_URL: nats://localhost:4222
+        # AGAMEMNON_URL is exported by the previous step via $GITHUB_ENV
         run: ctest --preset integration
