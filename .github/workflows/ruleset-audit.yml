@@ -1,0 +1,76 @@
+name: Ruleset Audit
+
+# Asserts that the active branch-protection ruleset enforces at least one
+# required approving review on pull requests targeting main. Guards against
+# silent UI-side downgrades (see issue #102, follow-up from #15).
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/apply-branch-protection.sh"
+      - ".github/workflows/ruleset-audit.yml"
+  push:
+    branches: [main]
+  schedule:
+    # Daily at 06:17 UTC — offset from the hour to avoid GH API thundering herd.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ruleset-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  assert-required-reviewers:
+    name: assert-required-reviewers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      # GITHUB_TOKEN cannot read org/repo rulesets metadata reliably; an
+      # admin-scoped fine-grained PAT exposed as RULESET_AUDIT_TOKEN is
+      # required. See scripts/apply-branch-protection.sh for the same scope.
+      GH_TOKEN: ${{ secrets.RULESET_AUDIT_TOKEN || secrets.GITHUB_TOKEN }}
+      ORG: HomericIntelligence
+      REPO: ProjectCharybdis
+      RULESET_NAME: homeric-main-baseline
+      MIN_REVIEWERS: "1"
+    steps:
+      - name: Resolve ruleset id by name
+        id: resolve
+        run: |
+          set -euo pipefail
+          RULESET_ID=$(gh api "repos/${ORG}/${REPO}/rulesets" \
+            --jq ".[] | select(.name == \"${RULESET_NAME}\") | .id")
+          if [ -z "${RULESET_ID}" ]; then
+            echo "::error::Ruleset '${RULESET_NAME}' not found on ${ORG}/${REPO}."
+            echo "Run scripts/apply-branch-protection.sh to create it." >&2
+            exit 1
+          fi
+          echo "Found ruleset '${RULESET_NAME}' (id=${RULESET_ID})"
+          echo "ruleset_id=${RULESET_ID}" >> "${GITHUB_OUTPUT}"
+
+      - name: Assert required_approving_review_count >= ${{ env.MIN_REVIEWERS }}
+        env:
+          RULESET_ID: ${{ steps.resolve.outputs.ruleset_id }}
+        run: |
+          set -euo pipefail
+          COUNT=$(gh api "repos/${ORG}/${REPO}/rulesets/${RULESET_ID}" \
+            --jq '.rules[] | select(.type == "pull_request") | .parameters.required_approving_review_count')
+
+          if [ -z "${COUNT}" ]; then
+            echo "::error::No pull_request rule found on ruleset '${RULESET_NAME}'."
+            echo "The ruleset must contain a pull_request rule that sets required_approving_review_count." >&2
+            exit 1
+          fi
+
+          if [ "${COUNT}" -lt "${MIN_REVIEWERS}" ]; then
+            echo "::error::required_approving_review_count is ${COUNT}, expected >= ${MIN_REVIEWERS}."
+            echo "Restore via: scripts/apply-branch-protection.sh" >&2
+            exit 1
+          fi
+
+          echo "OK: required_approving_review_count=${COUNT} (>= ${MIN_REVIEWERS}) on '${RULESET_NAME}'"
