@@ -62,6 +62,8 @@ All are optional; defaults point to local development instances.
 | `AGAMEMNON_URL`            | No       | `http://localhost:8080`    | Base URL of the Agamemnon chaos API                                         |
 | `NATS_URL`                 | No       | `nats://localhost:4222`    | NATS server used for JetStream tests                                        |
 | `CHAOS_RECOVERY_TIMEOUT_S` | No       | `10`                       | Seconds R03 waits for Agamemnon to come back after a `kill` fault          |
+| `CHAOS_AUDIT_LOG`          | No       | `stderr`                   | File path for the chaos injection audit trail (issue #44). `-`/`stderr`/unset emit to stderr; any other value is treated as a file path opened in append mode. |
+| `CHAOS_AUDIT_REQUESTER`    | No       | `$USER` or `unknown`       | Identity recorded in each audit record's `requester` field.                |
 
 Example:
 

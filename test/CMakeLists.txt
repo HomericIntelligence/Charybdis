@@ -8,7 +8,8 @@ find_package(nlohmann_json REQUIRED)
 add_executable(${PROJECT_NAME}_tests
     src/test_http_client_unit.cpp
     src/test_http_client_retry_unit.cpp
-    src/test_helpers_unit.cpp)
+    src/test_helpers_unit.cpp
+    src/test_chaos_audit_unit.cpp)
 
 target_compile_features(${PROJECT_NAME}_tests PRIVATE cxx_std_20)
 set_target_properties(${PROJECT_NAME}_tests PROPERTIES CXX_EXTENSIONS OFF)
