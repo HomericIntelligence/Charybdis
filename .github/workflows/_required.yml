@@ -292,7 +292,10 @@ jobs:
             -o "${TARBALL}"
           echo "${GITLEAKS_SHA256}  ${TARBALL}" | sha256sum --check --status
           tar xz -C "${GITLEAKS_DIR}" -f "${TARBALL}"
-          "${GITLEAKS_DIR}/gitleaks" detect --source . --redact --no-git
+          # Scan full git history (fetch-depth: 0 above ensures it's available).
+          # `--no-git` would only scan the working tree, missing secrets in
+          # prior commits — see #68 follow-up to #9.
+          "${GITLEAKS_DIR}/gitleaks" detect --source . --redact
 
   schema-validation:
     name: schema-validation
