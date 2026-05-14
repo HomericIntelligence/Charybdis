@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -9,6 +10,29 @@ class Client;
 }  // namespace httplib
 
 namespace projectcharybdis {
+
+/// Retry policy for transient connection failures (status == 0).
+/// Default is `max_retries = 0` — retries are opt-in to preserve the existing
+/// fail-fast behaviour for tests that intentionally probe an offline service.
+/// 4xx/5xx responses are deliberate replies and are never retried.
+struct RetryPolicy {
+  int max_retries = 0;        // additional attempts after first (total = max_retries + 1)
+  int base_delay_ms = 100;
+  int max_delay_ms = 2000;
+  double backoff_mult = 2.0;  // exponential factor; jitter is uniform(0.5, 1.5)
+};
+
+/// Configuration for the per-client circuit breaker.
+/// Default `failure_threshold = 0` disables the breaker entirely — opt-in to
+/// preserve existing call semantics. When enabled, consecutive transient
+/// failures (status == 0) trip the breaker; while OPEN, calls short-circuit to
+/// `{0, {}}` without touching the network until `open_duration_ms` elapses,
+/// after which a single HALF_OPEN probe is allowed.
+struct CircuitBreakerConfig {
+  int failure_threshold = 0;     // 0 disables the breaker
+  int open_duration_ms = 10000;
+  int success_threshold = 2;     // consecutive HALF_OPEN successes required to close
+};
 
 /// Thin HTTP client for chaos/resilience GTest tests.
 /// Wraps cpp-httplib for REST API interactions with Agamemnon.
@@ -27,7 +51,11 @@ class HttpTestClient {
   // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result)
   static constexpr std::size_t kMaxBodyBytes = 10 * 1024 * 1024;  // 10 MB
 
-  explicit HttpTestClient(const std::string& base_url = "http://localhost:8080");
+  /// Construct with optional retry and circuit-breaker policies. The defaults
+  /// preserve pre-#39 behaviour (no retries, no breaker), so existing callers
+  /// require no source changes.
+  explicit HttpTestClient(const std::string& base_url = "http://localhost:8080",
+                          RetryPolicy retry = {}, CircuitBreakerConfig cb = {});
   ~HttpTestClient();
 
   /// HTTP response. `body` is `{"error": "response_too_large"}` if the raw response
@@ -56,6 +84,13 @@ class HttpTestClient {
   /// The pointer must not be used to mutate `client_`'s ownership.
   [[nodiscard]] const httplib::Client* test_client_ptr() const { return client_.get(); }
 
+  /// Test-only circuit-breaker state. CLOSED is the normal pass-through state.
+  enum class BreakerState { kClosed, kOpen, kHalfOpen };
+
+  /// Test-only accessor — returns the current breaker state. Defined for unit
+  /// tests; production callers should not depend on this.
+  [[nodiscard]] BreakerState test_breaker_state() const;
+
  private:
   static constexpr int kConnectionTimeoutSec = 5;
   static constexpr int kReadTimeoutSec = 10;
@@ -63,6 +98,12 @@ class HttpTestClient {
   std::string host_;
   int port_;
   std::unique_ptr<httplib::Client> client_;
+
+  RetryPolicy retry_;
+  // CircuitBreaker is defined in the .cpp; held via unique_ptr to keep the
+  // header free of <atomic>/<mutex>/<random> and preserve ABI flexibility.
+  struct CircuitBreaker;
+  std::unique_ptr<CircuitBreaker> cb_;
 };
 
 }  // namespace projectcharybdis
