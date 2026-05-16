@@ -30,10 +30,10 @@ namespace {
 class ChaosAuditLogTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    auto tmp = std::filesystem::temp_directory_path() /
-               ("charybdis-audit-" +
-                std::to_string(::testing::UnitTest::GetInstance()->random_seed()) + "-" +
-                ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".jsonl");
+    auto tmp =
+        std::filesystem::temp_directory_path() /
+        ("charybdis-audit-" + std::to_string(::testing::UnitTest::GetInstance()->random_seed()) +
+         "-" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".jsonl");
     path_ = tmp.string();
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     ::setenv("CHAOS_AUDIT_LOG", path_.c_str(), 1);
@@ -42,8 +42,8 @@ class ChaosAuditLogTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    std::error_code ec;
-    std::filesystem::remove(path_, ec);
+    std::error_code err_code;
+    std::filesystem::remove(path_, err_code);
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     ::unsetenv("CHAOS_AUDIT_LOG");
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
@@ -51,10 +51,10 @@ class ChaosAuditLogTest : public ::testing::Test {
   }
 
   static std::string slurp(const std::string& path) {
-    std::ifstream in(path);
-    std::stringstream ss;
-    ss << in.rdbuf();
-    return ss.str();
+    std::ifstream input{path};
+    std::stringstream stream;
+    stream << input.rdbuf();
+    return stream.str();
   }
 
   // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
@@ -105,8 +105,8 @@ TEST_F(ChaosAuditLogTest, MultipleEventsAreNewlineDelimited) {
   }
   auto contents = slurp(path_);
   std::size_t lines = 0;
-  for (char c : contents) {
-    if (c == '\n') {
+  for (const char ch : contents) {
+    if (ch == '\n') {
       ++lines;
     }
   }

@@ -1,6 +1,9 @@
 #pragma once
 
+#include <array>
 #include <chrono>
+#include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
@@ -51,8 +54,8 @@ class ChaosAuditLog {
         std::string_view{dest} != "stderr") {
       file_.open(dest, std::ios::app);
       if (!file_.is_open()) {
-        std::cerr << "{\"chaos_audit_warning\":\"failed to open CHAOS_AUDIT_LOG="
-                  << dest << "; falling back to stderr\"}\n";
+        std::cerr << R"({"chaos_audit_warning":"failed to open CHAOS_AUDIT_LOG=)" << dest
+                  << R"(; falling back to stderr"})" << '\n';
       } else {
         path_ = dest;
       }
@@ -74,9 +77,8 @@ class ChaosAuditLog {
 
   /// Log a fault removal attempt. `fault_id` is the id being removed (may be
   /// non-empty even when removal failed).
-  void log_remove(std::string_view fault_type, std::string_view fault_id,
-                  std::string_view target, int http_status,
-                  const nlohmann::json& response_body) {
+  void log_remove(std::string_view fault_type, std::string_view fault_id, std::string_view target,
+                  int http_status, const nlohmann::json& response_body) {
     emit_remove(fault_type, fault_id, target, http_status, response_body);
   }
 
@@ -89,19 +91,31 @@ class ChaosAuditLog {
     using clock = std::chrono::system_clock;
     const auto now = clock::now();
     const auto secs = std::chrono::time_point_cast<std::chrono::seconds>(now);
-    const auto millis =
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - secs).count();
-    const std::time_t tt = clock::to_time_t(secs);
+    const auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now - secs).count();
+    const std::time_t time_t_val = clock::to_time_t(secs);
     std::tm tm_buf{};
-    // NOLINTNEXTLINE(concurrency-mt-unsafe) — gmtime_r is the thread-safe form
-    gmtime_r(&tt, &tm_buf);
-    char buf[32] = {};
-    // YYYY-MM-DDTHH:MM:SS
-    std::strftime(static_cast<char*>(buf), sizeof(buf), "%Y-%m-%dT%H:%M:%S", &tm_buf);
-    char out[40] = {};
-    std::snprintf(static_cast<char*>(out), sizeof(out), "%s.%03lldZ",
-                  static_cast<const char*>(buf), static_cast<long long>(millis));
-    return std::string{static_cast<const char*>(out)};
+    // gmtime_r is the thread-safe form; available on POSIX targets we build for.
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    gmtime_r(&time_t_val, &tm_buf);
+
+    // YYYY-MM-DDTHH:MM:SS is 19 chars; 24 leaves headroom for the NUL.
+    std::array<char, 24> date_buf{};
+    const std::size_t date_written =
+        std::strftime(date_buf.data(), date_buf.size(), "%Y-%m-%dT%H:%M:%S", &tm_buf);
+    if (date_written == 0) {
+      // strftime cannot encode this calendar value into the buffer; fall back
+      // to a well-formed sentinel so audit consumers can still parse the line.
+      return std::string{"1970-01-01T00:00:00.000Z"};
+    }
+
+    // ".NNNZ" is 5 chars; full ISO-8601 with millis fits in 24+5+1=30.
+    std::array<char, 32> out_buf{};
+    const int written = std::snprintf(out_buf.data(), out_buf.size(), "%s.%03lldZ", date_buf.data(),
+                                      static_cast<long long>(millis));
+    if (written <= 0 || static_cast<std::size_t>(written) >= out_buf.size()) {
+      return std::string{"1970-01-01T00:00:00.000Z"};
+    }
+    return std::string{out_buf.data(), static_cast<std::size_t>(written)};
   }
 
   static std::string current_requester() {
@@ -120,7 +134,7 @@ class ChaosAuditLog {
 
   void emit(std::string_view action, std::string_view fault_type, std::string_view target,
             int http_status, const nlohmann::json& response_body) {
-    nlohmann::json record = {
+    const nlohmann::json record = {
         {"schema_version", 1},
         {"timestamp", iso8601_utc_now()},
         {"action", std::string{action}},
@@ -134,10 +148,9 @@ class ChaosAuditLog {
     write_line(record);
   }
 
-  void emit_remove(std::string_view fault_type, std::string_view fault_id,
-                   std::string_view target, int http_status,
-                   const nlohmann::json& response_body) {
-    nlohmann::json record = {
+  void emit_remove(std::string_view fault_type, std::string_view fault_id, std::string_view target,
+                   int http_status, const nlohmann::json& response_body) {
+    const nlohmann::json record = {
         {"schema_version", 1},
         {"timestamp", iso8601_utc_now()},
         {"action", "remove"},
