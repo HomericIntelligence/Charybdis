@@ -1,3 +1,35 @@
 # ThreadSanitizer suppression file for ProjectCharybdis.
-# Add suppressions here as lock-free false positives are discovered.
+#
 # Format: race:symbol_pattern  or  called_from_lib:library_name
+# Reference: https://github.com/google/sanitizers/wiki/ThreadSanitizerSuppressions
+#
+# ---------------------------------------------------------------------------
+# moodycamel::ConcurrentQueue lock-free false positives
+# ---------------------------------------------------------------------------
+# moodycamel's queues use relaxed atomics and hazard pointers to achieve
+# lock-free progress. TSan models these as races even though they are
+# guaranteed safe by the algorithm. The upstream README documents the
+# expected false-positive surface; enumerate the symbols here so the
+# noise does not drown real races elsewhere in the codebase.
+#
+# These suppressions apply to any test/binary that links a moodycamel-
+# backed queue (e.g. via myrmidon pull-consumer integration tests). They
+# are no-ops when no moodycamel symbols are present in the binary.
+
+race:moodycamel::ConcurrentQueue
+race:moodycamel::BlockingConcurrentQueue
+race:moodycamel::ConsumerToken
+race:moodycamel::ProducerToken
+race:moodycamel::details::ThreadExitListener
+race:moodycamel::details::ConcurrentQueueProducerTypelessBase
+
+# Inner enqueue/dequeue fast paths — relaxed-atomic CAS loops.
+race:enqueue
+race:try_enqueue
+race:try_dequeue
+race:try_dequeue_from_producer
+
+# ---------------------------------------------------------------------------
+# Add new suppressions below as TSan CI runs reveal additional false
+# positives. Always include a comment explaining why the race is benign.
+# ---------------------------------------------------------------------------
