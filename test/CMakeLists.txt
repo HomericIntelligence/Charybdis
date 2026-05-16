@@ -7,6 +7,7 @@ find_package(nlohmann_json REQUIRED)
 # ── Version tests (always runnable) ──────────────────────────────────────────
 add_executable(${PROJECT_NAME}_tests
     src/test_http_client_unit.cpp
+    src/test_http_client_retry_unit.cpp
     src/test_helpers_unit.cpp)
 
 target_compile_features(${PROJECT_NAME}_tests PRIVATE cxx_std_20)
