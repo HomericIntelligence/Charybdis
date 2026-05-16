@@ -25,19 +25,19 @@ namespace projectcharybdis {
 // ── Default policy constants ──────────────────────────────────────────────────
 
 TEST(RetryPolicyDefaults, MatchesDocumentedValues) {
-  const RetryPolicy p{};
+  const RetryPolicy policy{};
   // Default is opt-in only: zero retries preserves pre-#39 behaviour.
-  EXPECT_EQ(p.max_retries, 0);
-  EXPECT_EQ(p.base_delay_ms, 100);
-  EXPECT_EQ(p.max_delay_ms, 2000);
-  EXPECT_DOUBLE_EQ(p.backoff_mult, 2.0);
+  EXPECT_EQ(policy.max_retries, 0);
+  EXPECT_EQ(policy.base_delay_ms, 100);
+  EXPECT_EQ(policy.max_delay_ms, 2000);
+  EXPECT_DOUBLE_EQ(policy.backoff_mult, 2.0);
 }
 
 TEST(CircuitBreakerDefaults, MatchesDocumentedValues) {
-  const CircuitBreakerConfig c{};
-  EXPECT_EQ(c.failure_threshold, 0);  // disabled by default
-  EXPECT_EQ(c.open_duration_ms, 10000);
-  EXPECT_EQ(c.success_threshold, 2);
+  const CircuitBreakerConfig config{};
+  EXPECT_EQ(config.failure_threshold, 0);  // disabled by default
+  EXPECT_EQ(config.open_duration_ms, 10000);
+  EXPECT_EQ(config.success_threshold, 2);
 }
 
 // ── Connection-refusal retry exhaustion ───────────────────────────────────────
@@ -46,10 +46,8 @@ TEST(CircuitBreakerDefaults, MatchesDocumentedValues) {
 // backoff parameters the retry loop completes within tens of ms.
 
 TEST(HttpTestClientRetryUnit, ExhaustsRetriesAgainstRefusedPort) {
-  const RetryPolicy retry{.max_retries = 2,
-                          .base_delay_ms = 1,
-                          .max_delay_ms = 2,
-                          .backoff_mult = 2.0};
+  const RetryPolicy retry{
+      .max_retries = 2, .base_delay_ms = 1, .max_delay_ms = 2, .backoff_mult = 2.0};
   HttpTestClient client("http://127.0.0.1:1", retry, {});
   const auto start = std::chrono::steady_clock::now();
   auto [status, body] = client.get("/any");
@@ -119,7 +117,7 @@ class HealthyServer {
 }  // namespace
 
 TEST(HttpTestClientRetryUnit, SuccessOnFirstAttemptNoRetry) {
-  HealthyServer mock;
+  const HealthyServer mock;
   const RetryPolicy retry{.max_retries = 5, .base_delay_ms = 1};
   HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), retry, {});
   auto [status, body] = client.get("/v1/ok");
@@ -131,7 +129,7 @@ TEST(HttpTestClientRetryUnit, SuccessOnFirstAttemptNoRetry) {
 TEST(HttpTestClientRetryUnit, HttpErrorIsNotRetried) {
   // 404 is a deliberate response, not a transient failure — the client must
   // not retry it. The mock should be hit exactly once.
-  HealthyServer mock;
+  const HealthyServer mock;
   const RetryPolicy retry{.max_retries = 5, .base_delay_ms = 1};
   HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), retry, {});
   auto [status, body] = client.get("/v1/notfound");
@@ -144,9 +142,9 @@ TEST(HttpTestClientRetryUnit, HttpErrorIsNotRetried) {
 TEST(HttpTestClientRetryUnit, BreakerTripsOpenAfterThreshold) {
   // Disable retries so each failing call counts as exactly one breaker hit.
   const RetryPolicy retry{};
-  const CircuitBreakerConfig cb{
+  const CircuitBreakerConfig breaker{
       .failure_threshold = 3, .open_duration_ms = 60000, .success_threshold = 2};
-  HttpTestClient client("http://127.0.0.1:1", retry, cb);
+  HttpTestClient client("http://127.0.0.1:1", retry, breaker);
 
   EXPECT_EQ(client.test_breaker_state(), HttpTestClient::BreakerState::kClosed);
   for (int i = 0; i < 3; ++i) {
@@ -166,9 +164,9 @@ TEST(HttpTestClientRetryUnit, BreakerTripsOpenAfterThreshold) {
 
 TEST(HttpTestClientRetryUnit, BreakerTransitionsToHalfOpenAfterDuration) {
   const RetryPolicy retry{};
-  const CircuitBreakerConfig cb{
+  const CircuitBreakerConfig breaker{
       .failure_threshold = 2, .open_duration_ms = 50, .success_threshold = 2};
-  HttpTestClient client("http://127.0.0.1:1", retry, cb);
+  HttpTestClient client("http://127.0.0.1:1", retry, breaker);
   for (int i = 0; i < 2; ++i) {
     (void)client.get("/x");
   }
@@ -181,7 +179,7 @@ TEST(HttpTestClientRetryUnit, BreakerTransitionsToHalfOpenAfterDuration) {
 }
 
 TEST(HttpTestClientRetryUnit, BreakerClosesAfterSuccessThresholdInHalfOpen) {
-  HealthyServer mock;
+  const HealthyServer mock;
 
   // Trip the breaker first against port 1, then redirect to the mock by
   // constructing a second client — but the breaker is per-client, so we need
@@ -191,9 +189,9 @@ TEST(HttpTestClientRetryUnit, BreakerClosesAfterSuccessThresholdInHalfOpen) {
   // success path's "reset consecutive_failures_" behaviour without needing
   // network re-routing.
   const RetryPolicy retry{};
-  const CircuitBreakerConfig cb{
+  const CircuitBreakerConfig breaker{
       .failure_threshold = 3, .open_duration_ms = 100, .success_threshold = 2};
-  HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), retry, cb);
+  HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), retry, breaker);
 
   for (int i = 0; i < 5; ++i) {
     auto [s, b] = client.get("/v1/ok");

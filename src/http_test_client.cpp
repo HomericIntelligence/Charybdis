@@ -115,13 +115,13 @@ struct HttpTestClient::CircuitBreaker {
   BreakerState state_{BreakerState::kClosed};
   int consecutive_failures_{0};
   int half_open_successes_{0};
-  std::chrono::steady_clock::time_point opened_at_{};
+  std::chrono::steady_clock::time_point opened_at_;
 };
 
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 HttpTestClient::HttpTestClient(const std::string& base_url, RetryPolicy retry,
-                               CircuitBreakerConfig cb)
-    : retry_(retry), cb_(std::make_unique<CircuitBreaker>(cb)) {
+                               CircuitBreakerConfig breaker_cfg)
+    : retry_(retry), cb_(std::make_unique<CircuitBreaker>(breaker_cfg)) {
   // Parse "http://host:port" into host and port
   const std::regex url_re(R"(https?://([^:]+):(\d+))");
   // NOLINTNEXTLINE(misc-const-correctness) — mutated as regex_match output parameter
@@ -154,15 +154,15 @@ HttpTestClient::HttpTestClient(const std::string& base_url, RetryPolicy retry,
 
 HttpTestClient::~HttpTestClient() = default;
 
-namespace {
-
 /// Apply the retry-with-backoff envelope around an httplib call.
-/// `fn` must return an `httplib::Result`. A `nullptr`-like result (status 0)
-/// is the transient signal that triggers retry. Any concrete response —
-/// including 4xx/5xx — is returned to the caller unchanged.
+/// `func` must be invocable and return an `httplib::Result`. A `nullptr`-like
+/// result (status 0) is the transient signal that triggers retry. Any
+/// concrete response — including 4xx/5xx — is returned to the caller
+/// unchanged. Defined as a private static member so it can refer to the
+/// private `CircuitBreaker` type.
 template <typename Fn>
-HttpTestClient::Response run_with_retry(const RetryPolicy& policy,
-                                        HttpTestClient::CircuitBreaker& breaker, Fn&& fn) {
+HttpTestClient::Response HttpTestClient::run_with_retry(const RetryPolicy& policy,
+                                                        CircuitBreaker& breaker, Fn func) {
   const int total = std::max(1, policy.max_retries + 1);
   for (int attempt = 0; attempt < total; ++attempt) {
     if (!breaker.allow_call()) {
@@ -170,7 +170,7 @@ HttpTestClient::Response run_with_retry(const RetryPolicy& policy,
       return {0, {}};
     }
 
-    auto res = fn();
+    auto res = func();
     if (res) {
       breaker.record_success();
       return {res->status, parse_body(*res)};
@@ -182,19 +182,16 @@ HttpTestClient::Response run_with_retry(const RetryPolicy& policy,
       break;  // no sleep after the final attempt
     }
     // Exponential backoff with jitter: min(base * mult^attempt, cap) * U(0.5, 1.5).
-    double delay = static_cast<double>(policy.base_delay_ms);
+    auto delay = static_cast<double>(policy.base_delay_ms);
     for (int i = 0; i < attempt; ++i) {
       delay *= policy.backoff_mult;
     }
     delay = std::min(delay, static_cast<double>(policy.max_delay_ms));
     delay *= jitter_factor();
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds{static_cast<int>(delay)});
+    std::this_thread::sleep_for(std::chrono::milliseconds{static_cast<int>(delay)});
   }
   return {0, {}};
 }
-
-}  // namespace
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 HttpTestClient::Response HttpTestClient::get(const std::string& path) {
@@ -213,8 +210,7 @@ HttpTestClient::Response HttpTestClient::del(const std::string& path) {
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters,readability-convert-member-functions-to-static)
 HttpTestClient::Response HttpTestClient::post_raw(const std::string& path, const std::string& body,
                                                   const std::string& content_type) {
-  return run_with_retry(retry_, *cb_,
-                        [&] { return client_->Post(path, body, content_type); });
+  return run_with_retry(retry_, *cb_, [&] { return client_->Post(path, body, content_type); });
 }
 
 bool HttpTestClient::is_healthy() {

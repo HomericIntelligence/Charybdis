@@ -1,9 +1,11 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <utility>
 
 namespace httplib {
 class Client;
@@ -16,7 +18,7 @@ namespace projectcharybdis {
 /// fail-fast behaviour for tests that intentionally probe an offline service.
 /// 4xx/5xx responses are deliberate replies and are never retried.
 struct RetryPolicy {
-  int max_retries = 0;        // additional attempts after first (total = max_retries + 1)
+  int max_retries = 0;  // additional attempts after first (total = max_retries + 1)
   int base_delay_ms = 100;
   int max_delay_ms = 2000;
   double backoff_mult = 2.0;  // exponential factor; jitter is uniform(0.5, 1.5)
@@ -29,9 +31,9 @@ struct RetryPolicy {
 /// `{0, {}}` without touching the network until `open_duration_ms` elapses,
 /// after which a single HALF_OPEN probe is allowed.
 struct CircuitBreakerConfig {
-  int failure_threshold = 0;     // 0 disables the breaker
+  int failure_threshold = 0;  // 0 disables the breaker
   int open_duration_ms = 10000;
-  int success_threshold = 2;     // consecutive HALF_OPEN successes required to close
+  int success_threshold = 2;  // consecutive HALF_OPEN successes required to close
 };
 
 /// Thin HTTP client for chaos/resilience GTest tests.
@@ -55,7 +57,7 @@ class HttpTestClient {
   /// preserve pre-#39 behaviour (no retries, no breaker), so existing callers
   /// require no source changes.
   explicit HttpTestClient(const std::string& base_url = "http://localhost:8080",
-                          RetryPolicy retry = {}, CircuitBreakerConfig cb = {});
+                          RetryPolicy retry = {}, CircuitBreakerConfig breaker_cfg = {});
   ~HttpTestClient();
 
   /// HTTP response. `body` is `{"error": "response_too_large"}` if the raw response
@@ -85,7 +87,7 @@ class HttpTestClient {
   [[nodiscard]] const httplib::Client* test_client_ptr() const { return client_.get(); }
 
   /// Test-only circuit-breaker state. CLOSED is the normal pass-through state.
-  enum class BreakerState { kClosed, kOpen, kHalfOpen };
+  enum class BreakerState : std::uint8_t { kClosed, kOpen, kHalfOpen };
 
   /// Test-only accessor — returns the current breaker state. Defined for unit
   /// tests; production callers should not depend on this.
@@ -104,6 +106,13 @@ class HttpTestClient {
   // header free of <atomic>/<mutex>/<random> and preserve ABI flexibility.
   struct CircuitBreaker;
   std::unique_ptr<CircuitBreaker> cb_;
+
+  /// Internal: apply the retry-with-backoff envelope around an httplib call.
+  /// `func` must be invocable and return an `httplib::Result`-like value
+  /// (truthy on response, falsy on transient failure). Implemented as a
+  /// private static so it can refer to the private `CircuitBreaker` type.
+  template <typename Fn>
+  static Response run_with_retry(const RetryPolicy& policy, CircuitBreaker& breaker, Fn func);
 };
 
 }  // namespace projectcharybdis
