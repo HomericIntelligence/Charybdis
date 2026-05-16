@@ -29,5 +29,5 @@ Milestone: <!-- e.g. "v0.2 — Recovery assertions" / "Backlog" -->
 
 ## Acceptance Criteria
 
-- [ ] 
-- [ ] 
+- [ ]
+- [ ]

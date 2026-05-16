@@ -79,10 +79,10 @@ just test
 does **not** restart Agamemnon — it only kills the process. Recovery therefore
 requires an external supervisor:
 
-* `systemd` unit with `Restart=on-failure`
-* Kubernetes pod (any `restartPolicy` other than `Never`)
-* Docker `--restart=always` / `unless-stopped`
-* equivalent process supervisor (`s6`, `runit`, `supervisord`, …)
+- `systemd` unit with `Restart=on-failure`
+- Kubernetes pod (any `restartPolicy` other than `Never`)
+- Docker `--restart=always` / `unless-stopped`
+- equivalent process supervisor (`s6`, `runit`, `supervisord`, …)
 
 Environments without such a supervisor must exclude R03 from their ctest run:
 
