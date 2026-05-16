@@ -1,0 +1,17 @@
+# Test-directory clang-tidy overrides.
+#
+# GTest's TEST/TEST_F macros generate subclasses that legitimately
+# require external linkage and contain non-private data members.
+# Enforcing the corresponding checks under test/ produces a wall of
+# systematic false-positives that obscure real findings, so we
+# suppress them here rather than annotating every fixture with
+# NOLINTNEXTLINE.
+#
+# See HomericIntelligence/ProjectCharybdis#86 for rationale.
+
+InheritParentConfig: true
+
+Checks: >
+  -misc-use-internal-linkage,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -misc-non-private-member-variables-in-classes
