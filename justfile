@@ -14,7 +14,15 @@ deps-release:
 build: deps
   cmake --preset debug && cmake --build --preset debug
 
-test:
+# Pass AGAMEMNON_URL and NATS_URL through to the test process so developers
+# can point integration tests at custom endpoints via their shell env. CTest
+# inherits the parent environment, but listing the vars here makes the
+# contract explicit (and gives `just --evaluate` something to surface).
+test AGAMEMNON_URL=env_var_or_default("AGAMEMNON_URL", "") NATS_URL=env_var_or_default("NATS_URL", ""):
+  #!/usr/bin/env bash
+  set -euo pipefail
+  export AGAMEMNON_URL="{{AGAMEMNON_URL}}"
+  export NATS_URL="{{NATS_URL}}"
   ctest --preset debug --output-on-failure
 
 # Standalone smoke tests for scripts/mock-agamemnon.py (no conan/cmake needed)

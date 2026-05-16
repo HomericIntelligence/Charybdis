@@ -132,6 +132,39 @@ The standard chaos scenario follows this sequence:
 Tests skip automatically (via `GTEST_SKIP()`) when Agamemnon is unreachable, so CI
 environments without a live mesh do not fail the build.
 
+### Nestor-Initiated Variant (Agent-Triggered Chaos)
+
+The default flow above describes Charybdis (an external test harness) invoking
+Agamemnon directly. In an agent-initiated scenario, **Nestor** acts as the
+coordinator: it schedules a chaos test as a mesh task, and the test process
+that runs the assertions still talks to Agamemnon's REST API for the actual
+fault injection.
+
+Invocation path:
+
+1. **Nestor schedules** — Nestor publishes a chaos test task referencing a
+   Charybdis test binary (e.g. via the standard mesh task routing on
+   `hi.myrmidon.hello.*`). The task payload includes the target fault type,
+   target service, and any required parameters.
+2. **Worker picks up** — A Myrmidon worker pulls the task and executes the
+   Charybdis test binary (or test target) referenced by the task.
+3. **Charybdis executes the standard Handoff Protocol above** — From this
+   point on the protocol is unchanged: the test binary posts to
+   `/v1/chaos/<type>`, observes, asserts recovery, and cleans up. Agamemnon
+   does **not** know whether the caller is a developer at a shell, CI, or
+   a Nestor-scheduled worker — it is the same REST surface.
+4. **Result reporting** — The worker reports the test exit code back into
+   the mesh; Nestor records the outcome alongside the scheduled task.
+
+This means agent-initiated chaos reuses every guarantee in the standard
+handoff (mandatory cleanup, skip-on-unreachable, namespaced subjects)
+without a separate code path on the Charybdis side.
+
+> **Status:** Nestor↔Agamemnon coordination protocol details (task payload
+> schema, result codes) are tracked in
+> [ProjectNestor](https://github.com/HomericIntelligence/ProjectNestor). This
+> section will be expanded once those are finalised.
+
 ## Environment Variables
 
 | Variable | Default | Description |

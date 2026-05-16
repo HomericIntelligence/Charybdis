@@ -373,7 +373,7 @@ See [SECURITY.md](SECURITY.md) for the responsible disclosure process.
 the GitHub Rulesets API. It requires elevated permissions that are **not** granted by a
 standard developer token.
 
-#### Prerequisites
+#### Token Prerequisites
 
 | Requirement | Detail |
 |-------------|--------|

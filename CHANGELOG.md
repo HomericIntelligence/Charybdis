@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] — 2026-05-04
 
 ### Added
+
 - Initial project scaffolding: CMake build system, Conan package management, Pixi environment
 - Chaos API client stubs for network-partition, latency, kill, queue-starve, and DELETE endpoints
 - CI workflows: build/test, static analysis, code coverage, and required-checks fan-in

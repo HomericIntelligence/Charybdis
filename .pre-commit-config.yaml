@@ -21,6 +21,13 @@ repos:
       - id: conventional-pre-commit
         stages: [commit-msg]
 
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.41.0
+    hooks:
+      - id: markdownlint
+        # Lints all *.md docs in the repo. Config: .markdownlint.yaml.
+        args: ["--config", ".markdownlint.yaml"]
+
   - repo: local
     hooks:
       - id: forbid-or-true

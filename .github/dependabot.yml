@@ -9,3 +9,12 @@ updates:
     # human inspection, as required by branch protection rules.
     reviewers:
       - HomericIntelligence/maintainers
+    # Group setup-pixi updates so the `pixi-version:` parameter in
+    # lock-check.yml is reviewed alongside the `uses:` SHA bump.
+    # Dependabot tracks the `uses:` ref automatically; the inline
+    # `pixi-version:` string is manually advanced in the same PR.
+    # See HomericIntelligence/ProjectCharybdis#122.
+    groups:
+      setup-pixi:
+        patterns:
+          - "prefix-dev/setup-pixi"

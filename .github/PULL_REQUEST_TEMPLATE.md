@@ -4,9 +4,19 @@
 
 Closes #
 
+## Milestone
+
+<!--
+Assign this PR to the same milestone as the issue it closes so the
+milestone burndown stays accurate. If the linked issue has no
+milestone, set it on the issue first.
+-->
+
+Milestone: <!-- e.g. "v0.2 — Recovery assertions" -->
+
 ## Changes
 
-- 
+-
 
 ## Test Plan
 

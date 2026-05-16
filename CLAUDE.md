@@ -19,6 +19,7 @@ that the system recovers gracefully. Proves the HomericIntelligence mesh is resi
 ## Architecture
 
 Charybdis talks to Agamemnon's chaos API:
+
 - `POST /v1/chaos/network-partition` — partition nodes in the Tailscale mesh
 - `POST /v1/chaos/latency` — inject latency on a node
 - `POST /v1/chaos/kill` — kill a named service
