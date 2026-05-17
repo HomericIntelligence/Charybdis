@@ -59,6 +59,28 @@ jobs:
           fi
           echo "Tag ${TAG_NAME} matches canonical version ${CMAKE_VERSION}"
 
+      - name: Check milestone for open issues
+        # Block release if a milestone matching the tag (e.g. v0.1.0) still
+        # has open issues. See #176.
+        env:
+          TAG_NAME: ${{ env.TAG_NAME }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          MILESTONE="${TAG_NAME}"
+          NUMBER=$(gh api "repos/${GITHUB_REPOSITORY}/milestones?state=open" \
+            --jq ".[] | select(.title == env.MILESTONE) | .number" || true)
+          if [ -z "${NUMBER}" ]; then
+            echo "No open milestone titled '${MILESTONE}'; skipping milestone gate."
+            exit 0
+          fi
+          OPEN=$(gh api "repos/${GITHUB_REPOSITORY}/issues?milestone=${NUMBER}&state=open&per_page=100" --jq 'length')
+          if [ "${OPEN}" -gt 0 ]; then
+            echo "ERROR: milestone '${MILESTONE}' still has ${OPEN} open issue(s); blocking release."
+            exit 1
+          fi
+          echo "Milestone '${MILESTONE}' has no open issues; proceeding."
+
       - name: Find previous tag
         env:
           TAG_NAME: ${{ env.TAG_NAME }}

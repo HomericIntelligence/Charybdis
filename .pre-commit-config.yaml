@@ -55,6 +55,16 @@ repos:
         files: ^\.github/workflows/.*\.ya?ml$
         pass_filenames: true
 
+      - id: version-sync
+        name: "Version sync check"
+        description: >
+          Verify project version is in sync across CMakeLists.txt, pixi.toml,
+          and any other version-bearing files via scripts/check-version-sync.sh.
+          See #163.
+        language: script
+        entry: scripts/check-version-sync.sh
+        pass_filenames: false
+
       - id: check-action-pins
         name: "verify all GitHub Action uses: are SHA-pinned"
         description: >

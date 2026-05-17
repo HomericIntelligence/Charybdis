@@ -308,6 +308,24 @@ jobs:
       - name: Validate workflow schemas
         run: |
           ~/.local/bin/check-jsonschema --builtin-schema vendor.github-workflows .github/workflows/*.yml
+      - name: Validate composite action schemas
+        # Composite action YAML files were previously unchecked; malformed
+        # action.yml could fail downstream jobs. See #114.
+        run: |
+          shopt -s nullglob
+          files=(.github/actions/**/action.yml .github/actions/**/action.yaml)
+          if [ ${#files[@]} -gt 0 ]; then
+            ~/.local/bin/check-jsonschema --builtin-schema vendor.github-actions "${files[@]}"
+          else
+            echo "No composite actions to validate."
+          fi
+      - name: Lint CHANGELOG.md (markdownlint)
+        # Explicit CI coverage so CHANGELOG format drift is caught even if
+        # contributors skip pre-commit hooks. Uses the same config as the
+        # pre-commit hook (.markdownlint.yaml). See #161.
+        run: |
+          npm install --no-save --no-fund --no-audit markdownlint-cli@0.41.0
+          npx markdownlint --config .markdownlint.yaml CHANGELOG.md
 
   deps-version-sync:
     name: deps/version-sync
