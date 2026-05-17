@@ -62,27 +62,33 @@ class ChaosAuditLog {
     // environment, so we treat it as tainted: only accept paths free of
     // embedded NULs and `..` traversal segments.
     if (dest_view.find('\0') != std::string_view::npos) {
-      std::cerr << R"({"chaos_audit_warning":"CHAOS_AUDIT_LOG contains embedded NUL; falling back to stderr"})"
-                << '\n';
+      std::cerr
+          << R"({"chaos_audit_warning":"CHAOS_AUDIT_LOG contains embedded NUL; falling back to stderr"})"
+          << '\n';
       return;
     }
     const std::filesystem::path candidate(dest_view);
     for (const auto& part : candidate) {
       if (part == "..") {
-        std::cerr << R"({"chaos_audit_warning":"CHAOS_AUDIT_LOG rejects parent-directory traversal; falling back to stderr"})"
-                  << '\n';
+        std::cerr
+            << R"({"chaos_audit_warning":"CHAOS_AUDIT_LOG rejects parent-directory traversal; falling back to stderr"})"
+            << '\n';
         return;
       }
     }
-    std::error_code ec;
-    const std::filesystem::path resolved = std::filesystem::weakly_canonical(candidate, ec);
-    const std::filesystem::path& open_path = ec ? candidate : resolved;
+    std::error_code err_code;
+    const std::filesystem::path resolved = std::filesystem::weakly_canonical(candidate, err_code);
+    const std::filesystem::path& open_path = err_code ? candidate : resolved;
     file_.open(open_path, std::ios::app);
     if (!file_.is_open()) {
-      std::cerr << R"({"chaos_audit_warning":"failed to open CHAOS_AUDIT_LOG=)" << open_path.string()
-                << R"(; falling back to stderr"})" << '\n';
+      std::cerr << R"({"chaos_audit_warning":"failed to open CHAOS_AUDIT_LOG=)"
+                << open_path.string() << R"(; falling back to stderr"})" << '\n';
     } else {
-      path_ = open_path.string();
+      // Preserve the caller-supplied destination string for the public
+      // accessor: callers reason about the path they passed via the
+      // environment, not the canonicalised form used internally to open
+      // the file.
+      path_ = std::string{dest_view};
     }
   }
 
