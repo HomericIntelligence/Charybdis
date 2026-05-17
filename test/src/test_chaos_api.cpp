@@ -5,6 +5,7 @@
  * Requires: Agamemnon running at AGAMEMNON_URL (default http://localhost:8080)
  */
 
+#include "projectcharybdis/chaos_audit.hpp"
 #include "projectcharybdis/http_test_client.hpp"
 #include "projectcharybdis/test_helpers.hpp"
 
@@ -22,10 +23,26 @@ class ChaosApiTest : public ::testing::Test {
  protected:
   void SetUp() override {
     client_ = std::make_unique<HttpTestClient>(agamemnon_url());
+    audit_ = std::make_unique<ChaosAuditLog>();
     // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (!client_->is_healthy()) {
       GTEST_SKIP() << "Agamemnon not reachable at " << agamemnon_url();
     }
+  }
+
+  // Issue #44: helpers that wrap the chaos verbs with audit emission so every
+  // injection event leaves a persistent record regardless of test outcome.
+  HttpTestClient::Response inject(const std::string& fault_type) {
+    auto response = client_->post("/v1/chaos/" + fault_type);
+    audit_->log_inject(fault_type, agamemnon_url(), response.status, response.body);
+    return response;
+  }
+
+  HttpTestClient::Response remove_fault(const std::string& fault_type,
+                                        const std::string& fault_id) {
+    auto response = client_->del("/v1/chaos/" + fault_id);
+    audit_->log_remove(fault_type, fault_id, agamemnon_url(), response.status, response.body);
+    return response;
   }
 
   // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
@@ -42,11 +59,13 @@ class ChaosApiTest : public ::testing::Test {
 
   // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::unique_ptr<HttpTestClient> client_;
+  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
+  std::unique_ptr<ChaosAuditLog> audit_;
 };
 
 // E01: Inject network-partition fault
 TEST_F(ChaosApiTest, E01InjectNetworkPartition) {
-  auto [status, body] = client_->post("/v1/chaos/network-partition");
+  auto [status, body] = inject("network-partition");
   ASSERT_GE(status, 200);
   ASSERT_LT(status, 300);
   ASSERT_TRUE(body.contains("id"));
@@ -58,37 +77,37 @@ TEST_F(ChaosApiTest, E01InjectNetworkPartition) {
   // NOLINTNEXTLINE(readability-implicit-bool-conversion)
   EXPECT_TRUE(fault_in_list(fault_id)) << "Fault not found in GET /v1/chaos";
 
-  std::ignore = client_->del("/v1/chaos/" + fault_id);
+  std::ignore = remove_fault("network-partition", fault_id);
 }
 
 // E02: Inject latency fault
 TEST_F(ChaosApiTest, E02InjectLatency) {
-  auto [status, body] = client_->post("/v1/chaos/latency");
+  auto [status, body] = inject("latency");
   ASSERT_GE(status, 200);
   ASSERT_LT(status, 300);
   EXPECT_EQ(body.value("type", ""), "latency");
 
-  std::ignore = client_->del("/v1/chaos/" + body.value("id", ""));
+  std::ignore = remove_fault("latency", body.value("id", ""));
 }
 
 // E03: Inject kill fault
 TEST_F(ChaosApiTest, E03InjectKill) {
-  auto [status, body] = client_->post("/v1/chaos/kill");
+  auto [status, body] = inject("kill");
   ASSERT_GE(status, 200);
   ASSERT_LT(status, 300);
   EXPECT_EQ(body.value("type", ""), "kill");
 
-  std::ignore = client_->del("/v1/chaos/" + body.value("id", ""));
+  std::ignore = remove_fault("kill", body.value("id", ""));
 }
 
 // E04: Remove fault
 TEST_F(ChaosApiTest, E04RemoveFault) {
-  auto [status, body] = client_->post("/v1/chaos/queue-starve");
+  auto [status, body] = inject("queue-starve");
   ASSERT_GE(status, 200);
   const std::string fault_id = body.value("id", "");
   ASSERT_FALSE(fault_id.empty());
 
-  auto [del_status, del_body] = client_->del("/v1/chaos/" + fault_id);
+  auto [del_status, del_body] = remove_fault("queue-starve", fault_id);
   EXPECT_GE(del_status, 200);
   EXPECT_LT(del_status, 300);
 
