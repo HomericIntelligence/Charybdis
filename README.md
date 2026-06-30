@@ -1,5 +1,9 @@
 # ProjectCharybdis
 
+[![Build & Test](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/build-test.yml/badge.svg)](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/build-test.yml)
+[![Code Coverage](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/code-coverage.yml/badge.svg)](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/code-coverage.yml)
+[![Static Analysis](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/static-analysis.yml)
+
 Chaos and resilience testing for the HomericIntelligence distributed agent mesh.
 
 Part of [Odysseus](https://github.com/HomericIntelligence/Odysseus) — the HomericIntelligence meta-repo.
