@@ -83,6 +83,35 @@ jobs:
         if: github.event_name != 'workflow_run'
         run: echo "Not a workflow_run event — pass (actual work done by Integration Tests workflow)"
 
+  # Canonical aggregate `test` check for the Odysseus ecosystem board.
+  # Charybdis keeps the split `unit-tests` / `integration-tests` sub-checks
+  # above; this job surfaces a single `test` name that reflects either test
+  # workflow. The real test work runs in "Build and Test" (unit) and
+  # "Integration Tests" (integration); this fan-in mirrors their conclusion.
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow.name == 'Build and Test' ||
+      github.event.workflow.name == 'Integration Tests'
+    steps:
+      - name: Check upstream test workflow result
+        if: github.event_name == 'workflow_run'
+        env:
+          WORKFLOW: ${{ github.event.workflow.name }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          if [ "${CONCLUSION}" != "success" ]; then
+            echo "${WORKFLOW} workflow failed with: ${CONCLUSION}"
+            exit 1
+          fi
+          echo "${WORKFLOW} passed"
+      - name: Skip (not triggered by this workflow)
+        if: github.event_name != 'workflow_run'
+        run: echo "Not a workflow_run event — pass (actual work done by Build and Test / Integration Tests workflows)"
+
   lint:
     name: lint
     runs-on: ubuntu-24.04
@@ -170,6 +199,32 @@ jobs:
   docker-build:
     name: docker-build
     runs-on: ubuntu-24.04
+    if: >
+      github.event_name != 'workflow_run' ||
+      github.event.workflow.name == 'Container Build and Publish'
+    steps:
+      - name: Check Container Build and Publish result
+        if: github.event_name == 'workflow_run'
+        env:
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: |
+          if [ "${CONCLUSION}" != "success" ]; then
+            echo "Container Build and Publish workflow failed with: ${CONCLUSION}"
+            exit 1
+          fi
+          echo "Container Build and Publish passed"
+      - name: Skip (not triggered by this workflow)
+        if: github.event_name != 'workflow_run'
+        run: echo "Not a workflow_run event — pass (actual work done by Container Build and Publish workflow)"
+
+  # Canonical `package` check for the Odysseus ecosystem board. Charybdis's
+  # distributable is the container image built by "Container Build and Publish"
+  # (also surfaced as the custom `docker-build` sub-check above). This fan-in
+  # reflects that workflow's result under the canonical `package` name.
+  package:
+    name: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     if: >
       github.event_name != 'workflow_run' ||
       github.event.workflow.name == 'Container Build and Publish'
@@ -418,3 +473,106 @@ jobs:
             exit 1
           fi
           echo "conan.lock is up-to-date"
+
+  # Canonical `install` check for the Odysseus ecosystem board. Builds the
+  # release artifact, runs `cmake --install` into a staging prefix, and smoke-
+  # tests that the installed CLI executes. Exercises the install() rules in
+  # CMakeLists.txt so packaging regressions are caught on every push/PR.
+  install:
+    name: install
+    runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_run'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build python3-pip
+          pip3 install --user conan
+      - name: Install Conan dependencies
+        uses: ./.github/actions/conan-install
+        with:
+          build_type: release
+          compiler: gcc
+      - name: Configure
+        run: cmake --preset release
+      - name: Build
+        run: cmake --build --preset release
+      - name: Install to staging prefix
+        run: cmake --install build/release --prefix "${RUNNER_TEMP}/install-prefix"
+      - name: Smoke-test installed CLI
+        run: |
+          set -euo pipefail
+          BIN="${RUNNER_TEMP}/install-prefix/bin/ProjectCharybdis_cli"
+          if [ ! -x "${BIN}" ]; then
+            echo "ERROR: installed CLI not found or not executable at ${BIN}"
+            # Diagnostic listing guarded by -d so a missing prefix dir cannot
+            # abort the script before the explicit exit below (set -e active).
+            if [ -d "${RUNNER_TEMP}/install-prefix" ]; then
+              find "${RUNNER_TEMP}/install-prefix" -maxdepth 4 -print
+            fi
+            exit 1
+          fi
+          # Run the installed binary. Accept --help success (0) or a benign
+          # usage exit; fail only on crash/segfault/missing-lib exits.
+          # `|| rc=$?` captures the exit code without tripping set -e.
+          rc=0
+          "${BIN}" --help || rc=$?
+          if [ "${rc}" -ge 2 ]; then
+            echo "ERROR: installed CLI exited ${rc} (>=2 indicates crash/load failure)"
+            exit "${rc}"
+          fi
+          echo "Installed CLI ran (exit ${rc})"
+
+  # Canonical `release` check for the Odysseus ecosystem board. The real
+  # publish pipeline lives in release.yml and is tag-gated (no check-run on
+  # main). This DRY-RUN validates the release prerequisites on every push/PR —
+  # version parses from CMakeLists.txt and the changelog generator runs — but
+  # publishes NOTHING. See release.yml for the actual tag-driven release.
+  release:
+    name: release
+    runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_run'
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        with:
+          fetch-depth: 0
+      - name: Validate canonical version parses from CMakeLists.txt
+        run: |
+          set -euo pipefail
+          CMAKE_VERSION=$(grep -A5 'project(' CMakeLists.txt \
+            | grep -oP '\d+\.\d+\.\d+' | head -1)
+          if [ -z "${CMAKE_VERSION}" ]; then
+            echo "ERROR: Could not parse VERSION from CMakeLists.txt"
+            exit 1
+          fi
+          echo "Canonical version: ${CMAKE_VERSION}"
+          echo "CMAKE_VERSION=${CMAKE_VERSION}" >> "${GITHUB_ENV}"
+      - name: Dry-run changelog generation
+        env:
+          CMAKE_VERSION: ${{ env.CMAKE_VERSION }}
+        run: |
+          set -euo pipefail
+          if [ ! -f scripts/generate-changelog.sh ]; then
+            echo "ERROR: scripts/generate-changelog.sh missing — release pipeline broken"
+            exit 1
+          fi
+          TAG_NAME="v${CMAKE_VERSION}"
+          # The vX.Y.Z tag does not exist yet during a pre-release dry-run, so
+          # diff the most recent existing tag against HEAD (not the unborn tag)
+          # to validate the changelog generator end-to-end without a real tag.
+          PREV_TAG=$(git tag --sort=-creatordate \
+            | awk -v skip="${TAG_NAME}" '$0 != skip { print; exit }')
+          if [ -z "${PREV_TAG}" ]; then
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "Generating changelog fragment ${PREV_TAG}..HEAD for ${TAG_NAME} (dry-run, no publish)"
+          FRAGMENT=$(bash scripts/generate-changelog.sh "${PREV_TAG}" "HEAD")
+          echo "----- changelog fragment (dry-run) -----"
+          echo "${FRAGMENT}"
+          echo "----------------------------------------"
+          echo "Release dry-run OK — no artifacts published."
