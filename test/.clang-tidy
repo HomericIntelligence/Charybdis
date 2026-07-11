@@ -7,7 +7,7 @@
 # suppress them here rather than annotating every fixture with
 # NOLINTNEXTLINE.
 #
-# See HomericIntelligence/ProjectCharybdis#86 for rationale.
+# See HomericIntelligence/Charybdis#86 for rationale.
 
 InheritParentConfig: true
 

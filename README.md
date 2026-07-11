@@ -1,8 +1,8 @@
-# ProjectCharybdis
+# Charybdis
 
-[![Build & Test](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/build-test.yml/badge.svg)](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/build-test.yml)
-[![Code Coverage](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/code-coverage.yml/badge.svg)](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/code-coverage.yml)
-[![Static Analysis](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/HomericIntelligence/ProjectCharybdis/actions/workflows/static-analysis.yml)
+[![Build & Test](https://github.com/HomericIntelligence/Charybdis/actions/workflows/build-test.yml/badge.svg)](https://github.com/HomericIntelligence/Charybdis/actions/workflows/build-test.yml)
+[![Code Coverage](https://github.com/HomericIntelligence/Charybdis/actions/workflows/code-coverage.yml/badge.svg)](https://github.com/HomericIntelligence/Charybdis/actions/workflows/code-coverage.yml)
+[![Static Analysis](https://github.com/HomericIntelligence/Charybdis/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/HomericIntelligence/Charybdis/actions/workflows/static-analysis.yml)
 
 Chaos and resilience testing for the HomericIntelligence distributed agent mesh.
 
@@ -35,8 +35,8 @@ Charybdis against a mesh that carries sensitive workloads.
 
 ```bash
 # Clone and enter the repo
-git clone https://github.com/HomericIntelligence/ProjectCharybdis.git
-cd ProjectCharybdis
+git clone https://github.com/HomericIntelligence/Charybdis.git
+cd Charybdis
 
 # Activate the Pixi environment (installs CMake, Ninja, clang-tools, gcovr)
 pixi shell
@@ -103,11 +103,11 @@ worst-case restart latency.
 ## Architecture
 
 ```text
-ProjectCharybdis/
+Charybdis/
 ├── src/
 │   ├── main.cpp                  # Entry point
 │   └── http_test_client.cpp      # HTTP client for the chaos API
-├── include/projectcharybdis/
+├── include/charybdis/
 │   ├── http_test_client.hpp      # HTTP client interface
 │   ├── test_helpers.hpp          # agamemnon_url(), nats_url(), wait_until()
 │   └── version.hpp               # Version constants
@@ -173,7 +173,7 @@ pre-commit install
 A pre-built runtime image is published to GitHub Container Registry on every push to
 `main` (and tagged release):
 
-- **Image:** `ghcr.io/homericintelligence/projectcharybdis`
+- **Image:** `ghcr.io/homericintelligence/charybdis`
 - **Tags:**
   - `latest` — most recent build from `main`
   - `sha-<short-sha>` — pinned to a specific commit SHA
@@ -181,16 +181,16 @@ A pre-built runtime image is published to GitHub Container Registry on every pus
 
 ```bash
 # Pull the latest image
-docker pull ghcr.io/homericintelligence/projectcharybdis:latest
+docker pull ghcr.io/homericintelligence/charybdis:latest
 
 # Or pin to a commit SHA for reproducibility
-docker pull ghcr.io/homericintelligence/projectcharybdis:sha-abc1234
+docker pull ghcr.io/homericintelligence/charybdis:sha-abc1234
 
 # Run the test suite against a remote Agamemnon
 docker run --rm \
   -e AGAMEMNON_URL=http://agamemnon.internal:8080 \
   -e NATS_URL=nats://nats.internal:4222 \
-  ghcr.io/homericintelligence/projectcharybdis:latest
+  ghcr.io/homericintelligence/charybdis:latest
 ```
 
 The image is built from the multi-stage `Dockerfile` at the repo root using the Conan

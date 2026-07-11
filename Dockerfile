@@ -63,9 +63,9 @@ COPY test/ test/
 RUN cmake -B build -G Ninja \
     -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake \
     -DCMAKE_BUILD_TYPE=Release \
-    -DProjectCharybdis_BUILD_TESTING=ON \
-    -DProjectCharybdis_ENABLE_CLANG_TIDY=OFF \
-    -DProjectCharybdis_ENABLE_CPPCHECK=OFF \
+    -DCharybdis_BUILD_TESTING=ON \
+    -DCharybdis_ENABLE_CLANG_TIDY=OFF \
+    -DCharybdis_ENABLE_CPPCHECK=OFF \
     && cmake --build build
 
 # Run tests as part of the build to validate.
@@ -75,7 +75,7 @@ RUN ctest --test-dir build --output-on-failure
 # non-root builder user can write to it). The CLI target is defined in
 # CMakeLists.txt as `${PROJECT_NAME}_cli` with `OUTPUT_NAME ${PROJECT_NAME}`
 # and installed via GNUInstallDirs RUNTIME DESTINATION → `bin`, so the binary
-# ends up at `/install/bin/ProjectCharybdis`.
+# ends up at `/install/bin/Charybdis`.
 RUN cmake --install build --prefix /install
 
 # ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Source path mirrors the install rule above; renaming to `charybdis` keeps
 # the runtime invocation short and decoupled from the CMake project name.
-COPY --from=builder /install/bin/ProjectCharybdis /usr/local/bin/charybdis
+COPY --from=builder /install/bin/Charybdis /usr/local/bin/charybdis
 
 USER charybdis
 

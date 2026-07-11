@@ -8,7 +8,7 @@
  * client treats as a transient failure eligible for retry).
  */
 
-#include "projectcharybdis/http_test_client.hpp"
+#include "charybdis/http_test_client.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -20,7 +20,7 @@
 
 #include <gtest/gtest.h>
 
-namespace projectcharybdis {
+namespace charybdis {
 
 // ── Default policy constants ──────────────────────────────────────────────────
 
@@ -210,4 +210,4 @@ TEST(HttpTestClientRetryUnit, DisabledBreakerNeverTrips) {
   EXPECT_EQ(client.test_breaker_state(), HttpTestClient::BreakerState::kClosed);
 }
 
-}  // namespace projectcharybdis
+}  // namespace charybdis

@@ -8,8 +8,8 @@
  * Requires: Agamemnon running at AGAMEMNON_URL
  */
 
-#include "projectcharybdis/http_test_client.hpp"
-#include "projectcharybdis/test_helpers.hpp"
+#include "charybdis/http_test_client.hpp"
+#include "charybdis/test_helpers.hpp"
 
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -17,7 +17,7 @@
 
 #include <gtest/gtest.h>
 
-namespace projectcharybdis {
+namespace charybdis {
 
 // NOLINTNEXTLINE(misc-use-internal-linkage)
 class MalformedMessageTest : public ::testing::Test {
@@ -101,4 +101,4 @@ TEST_F(MalformedMessageTest, WrongContentType) {
   EXPECT_TRUE(client_->is_healthy());
 }
 
-}  // namespace projectcharybdis
+}  // namespace charybdis

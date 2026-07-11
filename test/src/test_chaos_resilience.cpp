@@ -6,8 +6,8 @@
  * Requires: Agamemnon running at AGAMEMNON_URL (default http://localhost:8080)
  */
 
-#include "projectcharybdis/http_test_client.hpp"
-#include "projectcharybdis/test_helpers.hpp"
+#include "charybdis/http_test_client.hpp"
+#include "charybdis/test_helpers.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -19,7 +19,7 @@
 
 #include <gtest/gtest.h>
 
-namespace projectcharybdis {
+namespace charybdis {
 
 // NOLINTNEXTLINE(misc-use-internal-linkage)
 class ChaosResilienceTest : public ::testing::Test {
@@ -301,4 +301,4 @@ TEST_F(ChaosResilienceTest, R05MultiFaultStackedAndClearAll) {
   EXPECT_TRUE(kill_gone) << "Kill fault still present after removal";
 }
 
-}  // namespace projectcharybdis
+}  // namespace charybdis

@@ -1,14 +1,14 @@
-# ProjectCharybdis Roadmap
+# Charybdis Roadmap
 
-ProjectCharybdis is the chaos and resilience testing harness for the HomericIntelligence
+Charybdis is the chaos and resilience testing harness for the HomericIntelligence
 distributed agent mesh. This roadmap defines what must be true before each release and
 where post-release improvements land.
 
 GitHub milestones track the same scopes as the sections below:
 
-- [v0.1.0 — Release Readiness](https://github.com/HomericIntelligence/ProjectCharybdis/milestone/1)
-- [v0.2.0 — Hardening & Observability](https://github.com/HomericIntelligence/ProjectCharybdis/milestone/2)
-- [Backlog](https://github.com/HomericIntelligence/ProjectCharybdis/milestone/3)
+- [v0.1.0 — Release Readiness](https://github.com/HomericIntelligence/Charybdis/milestone/1)
+- [v0.2.0 — Hardening & Observability](https://github.com/HomericIntelligence/Charybdis/milestone/2)
+- [Backlog](https://github.com/HomericIntelligence/Charybdis/milestone/3)
 
 ---
 
@@ -110,7 +110,7 @@ Post-release work that raises quality from functional to production-grade.
 Minor and nitpick items picked up opportunistically.
 
 - [ ] #33 Fix missing `#include <set>` in `test_protocol_correctness.cpp`
-- [ ] #34 Remove `using namespace projectcharybdis` from integration test files
+- [ ] #34 Remove `using namespace charybdis` from integration test files
 - [ ] #35 Deduplicate `agent_id` extraction logic in test
 - [ ] #36 Remove dead Renovate FetchContent custom manager
 - [ ] #37 Validate URL port before `std::stoi` call

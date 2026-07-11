@@ -1,4 +1,4 @@
-# Static Analysis in ProjectCharybdis
+# Static Analysis in Charybdis
 
 ## Tools Configured
 
@@ -38,8 +38,8 @@ Both tools can be disabled individually without touching the source:
 
 ```bash
 cmake --preset debug \
-  -DProjectCharybdis_ENABLE_CPPCHECK=OFF   # disable cppcheck only
-  -DProjectCharybdis_ENABLE_CLANG_TIDY=OFF # disable clang-tidy only
+  -DCharybdis_ENABLE_CPPCHECK=OFF   # disable cppcheck only
+  -DCharybdis_ENABLE_CLANG_TIDY=OFF # disable clang-tidy only
 ```
 
 The Docker release build disables both (`-DENABLE_CLANG_TIDY=OFF -DENABLE_CPPCHECK=OFF`)
@@ -47,6 +47,6 @@ to keep image build times predictable.
 
 ## Future Work
 
-Tracked in [#87](https://github.com/HomericIntelligence/ProjectCharybdis/issues/87):
+Tracked in [#87](https://github.com/HomericIntelligence/Charybdis/issues/87):
 evaluate whether a curated cppcheck suppression list would justify promoting cppcheck
 findings to hard errors in a future iteration.
