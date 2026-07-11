@@ -1,4 +1,4 @@
-#include "projectcharybdis/http_test_client.hpp"
+#include "charybdis/http_test_client.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -13,7 +13,7 @@
 #include <string>
 #include <thread>
 
-namespace projectcharybdis {
+namespace charybdis {
 
 namespace {
 
@@ -220,4 +220,4 @@ bool HttpTestClient::is_healthy() {
 
 HttpTestClient::BreakerState HttpTestClient::test_breaker_state() const { return cb_->state(); }
 
-}  // namespace projectcharybdis
+}  // namespace charybdis

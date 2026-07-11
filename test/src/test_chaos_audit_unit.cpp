@@ -13,7 +13,7 @@
  * No external services required; runs in the unit-test target.
  */
 
-#include "projectcharybdis/chaos_audit.hpp"
+#include "charybdis/chaos_audit.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -24,7 +24,7 @@
 
 #include <gtest/gtest.h>
 
-namespace projectcharybdis {
+namespace charybdis {
 namespace {
 
 class ChaosAuditLogTest : public ::testing::Test {
@@ -141,4 +141,4 @@ TEST(ChaosAuditLogStderr, RequesterDefaultsWhenEnvUnset) {
 }
 
 }  // namespace
-}  // namespace projectcharybdis
+}  // namespace charybdis

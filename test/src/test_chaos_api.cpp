@@ -5,9 +5,9 @@
  * Requires: Agamemnon running at AGAMEMNON_URL (default http://localhost:8080)
  */
 
-#include "projectcharybdis/chaos_audit.hpp"
-#include "projectcharybdis/http_test_client.hpp"
-#include "projectcharybdis/test_helpers.hpp"
+#include "charybdis/chaos_audit.hpp"
+#include "charybdis/http_test_client.hpp"
+#include "charybdis/test_helpers.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-namespace projectcharybdis {
+namespace charybdis {
 
 // NOLINTNEXTLINE(misc-use-internal-linkage)
 class ChaosApiTest : public ::testing::Test {
@@ -118,4 +118,4 @@ TEST_F(ChaosApiTest, E04RemoveFault) {
   }
 }
 
-}  // namespace projectcharybdis
+}  // namespace charybdis

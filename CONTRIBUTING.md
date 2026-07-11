@@ -1,6 +1,6 @@
-# Contributing to ProjectCharybdis
+# Contributing to Charybdis
 
-Thank you for your interest in contributing to ProjectCharybdis! This is the chaos and
+Thank you for your interest in contributing to Charybdis! This is the chaos and
 resilience testing framework for the
 [HomericIntelligence](https://github.com/HomericIntelligence) distributed agent mesh.
 
@@ -34,8 +34,8 @@ For an overview of the full ecosystem, see the
 
 ```bash
 # Clone the repository
-git clone https://github.com/HomericIntelligence/ProjectCharybdis.git
-cd ProjectCharybdis
+git clone https://github.com/HomericIntelligence/Charybdis.git
+cd Charybdis
 
 # Activate the Pixi environment (installs CMake, Ninja, clang-tools, gcovr)
 pixi shell
@@ -103,7 +103,7 @@ just ci
 
 Before starting work:
 
-- Browse [existing issues](https://github.com/HomericIntelligence/ProjectCharybdis/issues)
+- Browse [existing issues](https://github.com/HomericIntelligence/Charybdis/issues)
 - Comment on an issue to claim it before starting work
 - Create a new issue if one doesn't exist for your contribution
 
@@ -411,4 +411,4 @@ Please review our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
 
 ---
 
-Thank you for contributing to ProjectCharybdis!
+Thank you for contributing to Charybdis!

@@ -7,7 +7,7 @@
 #include <string>
 #include <thread>
 
-namespace projectcharybdis {
+namespace charybdis {
 
 /// Get Agamemnon URL from environment or default
 inline std::string agamemnon_url() {
@@ -74,4 +74,4 @@ bool wait_until(Pred pred, std::chrono::seconds timeout = std::chrono::seconds{3
   return false;
 }
 
-}  // namespace projectcharybdis
+}  // namespace charybdis

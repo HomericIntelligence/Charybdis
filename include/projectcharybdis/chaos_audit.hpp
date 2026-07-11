@@ -15,7 +15,7 @@
 #include <string>
 #include <string_view>
 
-namespace projectcharybdis {
+namespace charybdis {
 
 /// Audit trail for chaos injection events.
 ///
@@ -205,4 +205,4 @@ class ChaosAuditLog {
   std::string path_;
 };
 
-}  // namespace projectcharybdis
+}  // namespace charybdis

@@ -5,8 +5,8 @@
  * Requires: Agamemnon + NATS running
  */
 
-#include "projectcharybdis/http_test_client.hpp"
-#include "projectcharybdis/test_helpers.hpp"
+#include "charybdis/http_test_client.hpp"
+#include "charybdis/test_helpers.hpp"
 
 #include <chrono>
 #include <memory>
@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-namespace projectcharybdis {
+namespace charybdis {
 
 // NOLINTNEXTLINE(misc-use-internal-linkage)
 class ProtocolCorrectnessTest : public ::testing::Test {
@@ -113,4 +113,4 @@ TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
   }
 }
 
-}  // namespace projectcharybdis
+}  // namespace charybdis

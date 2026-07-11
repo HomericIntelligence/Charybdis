@@ -17,7 +17,7 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ProjectCharybdis_BUILD_TESTING": "ON"
+        "Charybdis_BUILD_TESTING": "ON"
       }
     },
     {
@@ -26,8 +26,8 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ProjectCharybdis_BUILD_TESTING": "ON",
-        "ProjectCharybdis_ENABLE_SANITIZERS": "ON"
+        "Charybdis_BUILD_TESTING": "ON",
+        "Charybdis_ENABLE_SANITIZERS": "ON"
       }
     },
     {
@@ -36,8 +36,8 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ProjectCharybdis_BUILD_TESTING": "ON",
-        "ProjectCharybdis_ENABLE_TSAN": "ON"
+        "Charybdis_BUILD_TESTING": "ON",
+        "Charybdis_ENABLE_TSAN": "ON"
       }
     },
     {
@@ -47,9 +47,9 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ProjectCharybdis_BUILD_TESTING": "ON",
-        "ProjectCharybdis_ENABLE_SANITIZERS": "ON",
-        "ProjectCharybdis_SANITIZER": "msan"
+        "Charybdis_BUILD_TESTING": "ON",
+        "Charybdis_ENABLE_SANITIZERS": "ON",
+        "Charybdis_SANITIZER": "msan"
       }
     },
     {
@@ -58,7 +58,7 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "ProjectCharybdis_BUILD_TESTING": "ON"
+        "Charybdis_BUILD_TESTING": "ON"
       }
     },
     {
@@ -67,15 +67,15 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "ProjectCharybdis_BUILD_TESTING": "ON",
-        "ProjectCharybdis_ENABLE_COVERAGE": "ON"
+        "Charybdis_BUILD_TESTING": "ON",
+        "Charybdis_ENABLE_COVERAGE": "ON"
       }
     },
     {
       "name": "ci",
       "displayName": "CI",
       "inherits": "release",
-      "cacheVariables": {"ProjectCharybdis_WARNINGS_AS_ERRORS": "ON"}
+      "cacheVariables": {"Charybdis_WARNINGS_AS_ERRORS": "ON"}
     }
   ],
   "buildPresets": [

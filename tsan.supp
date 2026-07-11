@@ -1,4 +1,4 @@
-# ThreadSanitizer suppression file for ProjectCharybdis.
+# ThreadSanitizer suppression file for Charybdis.
 #
 # Format: race:symbol_pattern  or  called_from_lib:library_name
 # Reference: https://github.com/google/sanitizers/wiki/ThreadSanitizerSuppressions

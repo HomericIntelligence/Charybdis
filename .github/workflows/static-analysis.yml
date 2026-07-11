@@ -33,7 +33,7 @@ jobs:
           build_type: debug
           compiler: clang
       - name: Configure
-        run: CC=clang CXX=clang++ cmake --preset debug -DProjectCharybdis_ENABLE_CLANG_TIDY=ON
+        run: CC=clang CXX=clang++ cmake --preset debug -DCharybdis_ENABLE_CLANG_TIDY=ON
       - name: Build
         run: cmake --build --preset debug
 

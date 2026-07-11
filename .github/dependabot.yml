@@ -13,7 +13,7 @@ updates:
     # lock-check.yml is reviewed alongside the `uses:` SHA bump.
     # Dependabot tracks the `uses:` ref automatically; the inline
     # `pixi-version:` string is manually advanced in the same PR.
-    # See HomericIntelligence/ProjectCharybdis#122.
+    # See HomericIntelligence/Charybdis#122.
     groups:
       setup-pixi:
         patterns:

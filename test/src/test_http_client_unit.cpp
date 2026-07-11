@@ -8,7 +8,7 @@
  * httplib server.
  */
 
-#include "projectcharybdis/http_test_client.hpp"
+#include "charybdis/http_test_client.hpp"
 
 #include <chrono>
 #include <httplib.h>
@@ -19,7 +19,7 @@
 
 #include <gtest/gtest.h>
 
-namespace projectcharybdis {
+namespace charybdis {
 
 // ── Constructor / URL parsing ─────────────────────────────────────────────────
 
@@ -330,4 +330,4 @@ TEST_F(HttpTestClientOnline, ClientPointerStableAcrossIsHealthyAndCalls) {
   EXPECT_EQ(client_->test_client_ptr(), before);
 }
 
-}  // namespace projectcharybdis
+}  // namespace charybdis

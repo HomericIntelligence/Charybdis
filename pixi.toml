@@ -1,5 +1,5 @@
 [workspace]
-name = "projectcharybdis"
+name = "charybdis"
 version = "0.1.0"
 description = "Chaos and resilience testing for HomericIntelligence"
 channels = ["conda-forge"]

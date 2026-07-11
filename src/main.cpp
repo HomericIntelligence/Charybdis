@@ -1,8 +1,8 @@
-#include "projectcharybdis/version.hpp"  // NOLINT(misc-include-cleaner)
+#include "charybdis/version.hpp"  // NOLINT(misc-include-cleaner)
 
 #include <iostream>
 
 int main() {
-  std::cout << projectcharybdis::kProjectName << " v" << projectcharybdis::kVersion << "\n";
+  std::cout << charybdis::kProjectName << " v" << charybdis::kVersion << "\n";
   return 0;
 }

@@ -29,6 +29,6 @@ WarningsAsErrors: >
   -hicpp-no-array-decay,
   -misc-include-cleaner,
   -abseil-*
-HeaderFilterRegex: '/ProjectCharybdis/(include|src|test)/'
+HeaderFilterRegex: '/Charybdis/(include|src|test)/'
 FormatStyle: file
 ...

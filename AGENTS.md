@@ -1,7 +1,7 @@
-# AGENTS.md — Multi-Agent Coordination for ProjectCharybdis
+# AGENTS.md — Multi-Agent Coordination for Charybdis
 
 This document specifies how agents in the HomericIntelligence mesh interact with
-ProjectCharybdis, which NATS subjects are used for task routing and metrics, and the
+Charybdis, which NATS subjects are used for task routing and metrics, and the
 handoff protocol for fault injection and recovery validation.
 
 ## Agent Roles in the Mesh
@@ -119,7 +119,7 @@ The standard chaos scenario follows this sequence:
        std::chrono::seconds{120});
    ```
 
-   See `include/projectcharybdis/test_helpers.hpp` for the full signature.
+   See `include/charybdis/test_helpers.hpp` for the full signature.
 
 4. **Clean up** — Regardless of assertion outcome, Charybdis `DELETE`s the fault via
    `/v1/chaos/<fault-id>`. Cleanup must happen even on test failure to avoid leaving
@@ -173,7 +173,7 @@ without a separate code path on the Charybdis side.
 | `NATS_URL` | `nats://localhost:4222` | NATS server URL for direct subject access |
 
 These are read at test startup via `agamemnon_url()` and `nats_url()` from
-`include/projectcharybdis/test_helpers.hpp`.
+`include/charybdis/test_helpers.hpp`.
 
 ## Security Boundary
 

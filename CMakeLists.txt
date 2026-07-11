@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(
-  ProjectCharybdis
+  Charybdis
   VERSION 0.1.0
   DESCRIPTION "Chaos and resilience testing for HomericIntelligence"
   LANGUAGES CXX)
@@ -23,8 +23,8 @@ include(cmake/Doxygen.cmake)
 include(cmake/SourcesAndHeaders.cmake)
 
 configure_file(
-  include/projectcharybdis/version.hpp.in
-  ${PROJECT_BINARY_DIR}/include/projectcharybdis/version.hpp
+  include/charybdis/version.hpp.in
+  ${PROJECT_BINARY_DIR}/include/charybdis/version.hpp
   @ONLY)
 
 find_package(httplib REQUIRED)

@@ -1,4 +1,4 @@
-# .trivyignore — Trivy CVE suppression list for ProjectCharybdis
+# .trivyignore — Trivy CVE suppression list for Charybdis
 #
 # POLICY: Suppressions must be reviewed and approved before being added here.
 # Each entry requires:
