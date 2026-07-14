@@ -24,7 +24,7 @@ include(cmake/SourcesAndHeaders.cmake)
 
 configure_file(
   include/charybdis/version.hpp.in
-  ${PROJECT_BINARY_DIR}/include/projectcharybdis/version.hpp
+  ${PROJECT_BINARY_DIR}/include/charybdis/version.hpp
   @ONLY)
 
 find_package(httplib REQUIRED)
