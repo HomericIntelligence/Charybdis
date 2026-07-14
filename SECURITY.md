@@ -122,7 +122,7 @@ analysis.
 
 ## Security Best Practices
 
-When contributing to ProjectCharybdis:
+When contributing to Charybdis:
 
 - Isolate fault injection to test environments and namespaced NATS subjects
 - Validate all injection targets before publishing

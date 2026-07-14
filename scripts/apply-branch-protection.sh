@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ORG="HomericIntelligence"
-REPO="ProjectCharybdis"
+REPO="Charybdis"
 RULESET_NAME="homeric-main-baseline"
 
 RULESET_ID=$(gh api "repos/${ORG}/${REPO}/rulesets" \
