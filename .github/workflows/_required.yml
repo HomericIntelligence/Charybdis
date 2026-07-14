@@ -504,7 +504,10 @@ jobs:
       - name: Smoke-test installed CLI
         run: |
           set -euo pipefail
-          BIN="${RUNNER_TEMP}/install-prefix/bin/ProjectCharybdis_cli"
+          # The CMake target is ProjectCharybdis_cli, but CMakeLists.txt sets
+          # OUTPUT_NAME ${PROJECT_NAME}, so the installed file is
+          # bin/ProjectCharybdis (no _cli suffix).
+          BIN="${RUNNER_TEMP}/install-prefix/bin/ProjectCharybdis"
           if [ ! -x "${BIN}" ]; then
             echo "ERROR: installed CLI not found or not executable at ${BIN}"
             # Diagnostic listing guarded by -d so a missing prefix dir cannot
