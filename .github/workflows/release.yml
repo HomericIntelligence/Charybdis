@@ -138,10 +138,12 @@ jobs:
         run: ctest --preset release
       - name: Package binary
         run: |
-          strip build/release/ProjectCharybdis_cli
+          # OUTPUT_NAME ${PROJECT_NAME} in CMakeLists.txt names the built
+          # binary ProjectCharybdis, not the target name ProjectCharybdis_cli.
+          strip build/release/ProjectCharybdis
           mkdir -p dist
           tar czf "dist/charybdis-linux-amd64.tar.gz" \
-            -C build/release ProjectCharybdis_cli
+            -C build/release ProjectCharybdis
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
