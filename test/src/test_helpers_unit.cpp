@@ -4,10 +4,10 @@
  *
  * Exercises agamemnon_url(), nats_url(), chaos_recovery_timeout(),
  * random_suffix(), and wait_until() to ensure the
- * include/projectcharybdis/test_helpers.hpp lines are covered.
+ * include/charybdis/test_helpers.hpp lines are covered.
  */
 
-#include "projectcharybdis/test_helpers.hpp"
+#include "charybdis/test_helpers.hpp"
 
 #include <chrono>
 #include <cstdlib>
@@ -15,7 +15,7 @@
 
 #include <gtest/gtest.h>
 
-namespace projectcharybdis {
+namespace charybdis {
 
 TEST(TestHelpersUnit, AgamemnonUrlDefaultsToLocalhost) {
   // Without AGAMEMNON_URL set, should return the default
@@ -103,4 +103,4 @@ TEST(TestHelpersUnit, WaitUntilReturnsTrueAfterDelay) {
   EXPECT_GE(count, 3);
 }
 
-}  // namespace projectcharybdis
+}  // namespace charybdis

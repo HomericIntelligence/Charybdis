@@ -42,7 +42,7 @@ jobs:
       # required. See scripts/apply-branch-protection.sh for the same scope.
       GH_TOKEN: ${{ secrets.RULESET_AUDIT_TOKEN || secrets.GITHUB_TOKEN }}
       ORG: HomericIntelligence
-      REPO: ProjectCharybdis
+      REPO: Charybdis
       RULESET_NAME: homeric-main-baseline
       # Org policy is 0 required approvals on all repos (merging without
       # human approval is intentional). Do not raise this — it must track

@@ -1,4 +1,4 @@
-# Data Handling Policy — ProjectCharybdis
+# Data Handling Policy — Charybdis
 
 Charybdis is a chaos and resilience testing tool for the HomericIntelligence distributed
 agent mesh. It interacts with Agamemnon's chaos REST API and NATS JetStream subjects. This

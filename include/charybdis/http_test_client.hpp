@@ -11,7 +11,7 @@ namespace httplib {
 class Client;
 }  // namespace httplib
 
-namespace projectcharybdis {
+namespace charybdis {
 
 /// Retry policy for transient connection failures (status == 0).
 /// Default is `max_retries = 0` — retries are opt-in to preserve the existing
@@ -115,4 +115,4 @@ class HttpTestClient {
   static Response run_with_retry(const RetryPolicy& policy, CircuitBreaker& breaker, Fn func);
 };
 
-}  // namespace projectcharybdis
+}  // namespace charybdis

@@ -1,8 +1,8 @@
-# CLAUDE.md — ProjectCharybdis
+# CLAUDE.md — Charybdis
 
 ## Project Overview
 
-ProjectCharybdis is the chaos and resilience testing service for the HomericIntelligence
+Charybdis is the chaos and resilience testing service for the HomericIntelligence
 distributed agent mesh.
 
 **Role:** Injects faults into the live system via Agamemnon's chaos API, then validates

@@ -442,7 +442,7 @@ jobs:
           build_type: debug
           compiler: clang
       - name: Configure with clang-tidy enabled
-        run: CC=clang CXX=clang++ cmake --preset debug -DProjectCharybdis_ENABLE_CLANG_TIDY=ON
+        run: CC=clang CXX=clang++ cmake --preset debug -DCharybdis_ENABLE_CLANG_TIDY=ON
       - name: Build (clang-tidy runs as part of build)
         run: cmake --build --preset debug
 
@@ -504,10 +504,10 @@ jobs:
       - name: Smoke-test installed CLI
         run: |
           set -euo pipefail
-          # The CMake target is ProjectCharybdis_cli, but CMakeLists.txt sets
+          # The CMake target is Charybdis_cli, but CMakeLists.txt sets
           # OUTPUT_NAME ${PROJECT_NAME}, so the installed file is
-          # bin/ProjectCharybdis (no _cli suffix).
-          BIN="${RUNNER_TEMP}/install-prefix/bin/ProjectCharybdis"
+          # bin/Charybdis (no _cli suffix).
+          BIN="${RUNNER_TEMP}/install-prefix/bin/Charybdis"
           if [ ! -x "${BIN}" ]; then
             echo "ERROR: installed CLI not found or not executable at ${BIN}"
             # Diagnostic listing guarded by -d so a missing prefix dir cannot
