@@ -75,6 +75,12 @@ repos:
         entry: ./scripts/check-action-pins.sh
         files: ^\.github/(workflows|actions)/.*\.ya?ml$
         pass_filenames: false
+      - id: merge-queue-policy
+        name: "validate merge queue policy and fan-ins"
+        language: system
+        entry: ./scripts/test-merge-queue-policy.py
+        files: ^(\.github/workflows/.*\.ya?ml|configs/github/merge-queue-policy\.json|docs/ci/merge-queue\.md|scripts/test-merge-queue-policy\.py|justfile)$
+        pass_filenames: false
       - id: require-signed-commits
         name: "require gpg/ssh-signed commits on push"
         description: >

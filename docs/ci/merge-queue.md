@@ -21,20 +21,28 @@ The required-context carriers support `push` and `pull_request` on `main` plus
 - `.github/workflows/_required.yml`
 - `.github/workflows/build-test.yml`
 - `.github/workflows/code-coverage.yml`
+- `.github/workflows/container.yml`
 - `.github/workflows/integration-tests.yml`
 - `.github/workflows/static-analysis.yml`
 
-`.github/workflows/integration-tests.yml` emits the required
-`integration-tests` context directly from the real integration suite. The
-context is emitted exactly once: `_required.yml` does not create a merge-group
-skip/pass proxy for it. The release publisher remains tag/manual-only and must
-not run for merge groups.
+The required `build`, `unit-tests`, `test`, `lint`, and `package` contexts are
+result fan-ins in the workflows that perform the underlying work. Each waits
+for its `needs` jobs with `always()` and fails from the upstream result, so a
+merge-group check cannot pass before the real build, test, lint, or package job
+has completed. `_required.yml` contains independent checks only; it does not
+create merge-group skip/pass proxies for these contexts. The
+`integration-tests` context is emitted exactly once by the real integration
+suite. The release publisher remains tag/manual-only and must not run for merge
+groups.
 
 Run the executable policy regression test with:
 
 ```bash
 ./scripts/test-merge-queue-policy.py
 ```
+
+The same test is required by the `merge-queue-policy` just recipe, `just ci`,
+the pre-commit hook, and the required CI workflow's schema-validation job.
 
 ## Activation boundary
 

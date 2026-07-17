@@ -13,6 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 POLICY_PATH = REPO_ROOT / "configs" / "github" / "merge-queue-policy.json"
 DOC_PATH = REPO_ROOT / "docs" / "ci" / "merge-queue.md"
+JUSTFILE_PATH = REPO_ROOT / "justfile"
+PRECOMMIT_PATH = REPO_ROOT / ".pre-commit-config.yaml"
 
 EXPECTED_CONTEXTS = [
     "All Build/Test Checks",
@@ -50,11 +52,20 @@ EXPECTED_REQUIRED_WORKFLOWS = {
     "_required.yml",
     "build-test.yml",
     "code-coverage.yml",
+    "container.yml",
     "integration-tests.yml",
     "static-analysis.yml",
 }
 
 EXPECTED_MERGE_GROUP_WORKFLOWS = EXPECTED_REQUIRED_WORKFLOWS
+
+EXPECTED_FAN_IN_EMITTERS = {
+    "build": ("build-test.yml", "build"),
+    "unit-tests": ("build-test.yml", "unit-tests"),
+    "test": ("build-test.yml", "test"),
+    "lint": ("static-analysis.yml", "lint"),
+    "package": ("container.yml", "package"),
+}
 
 
 def _inline_list(value: str) -> list[str]:
@@ -241,6 +252,47 @@ class MergeQueuePolicyTests(unittest.TestCase):
         self.assertIn("Odysseus", document)
         self.assertIn("must not mutate", document)
         self.assertIn("independent human", document)
+
+    def test_required_fan_ins_run_after_real_upstream_results(self) -> None:
+        for context, (workflow_name, job_id) in EXPECTED_FAN_IN_EMITTERS.items():
+            workflow = WORKFLOWS_DIR / workflow_name
+            section = _job_section(workflow, job_id)
+
+            self.assertEqual(
+                _context_emitters(context),
+                [f"{workflow_name}:{job_id}"],
+            )
+            self.assertIn("merge_group", _triggers(workflow))
+            self.assertRegex(section, r"(?m)^    needs:")
+            self.assertRegex(section, r"(?m)^    if: always\(\)$")
+            self.assertIn("needs.", section)
+            self.assertIn("result", section)
+            self.assertNotRegex(section, r"(?m)^    if: >")
+            self.assertNotIn("Skip", section)
+
+    def test_required_proxy_workflow_does_not_emit_fan_in_contexts(self) -> None:
+        required_workflow = WORKFLOWS_DIR / "_required.yml"
+        required_contexts = set(EXPECTED_FAN_IN_EMITTERS)
+
+        self.assertTrue(required_contexts.isdisjoint(_job_names(required_workflow)))
+
+    def test_policy_regression_is_wired_into_authoritative_validation(self) -> None:
+        justfile = JUSTFILE_PATH.read_text()
+        precommit = PRECOMMIT_PATH.read_text()
+        required_workflow = _job_section(
+            WORKFLOWS_DIR / "_required.yml", "schema-validation"
+        )
+
+        self.assertRegex(
+            justfile,
+            r"(?ms)^merge-queue-policy:\n\s+\./scripts/test-merge-queue-policy\.py\s*$",
+        )
+        self.assertRegex(justfile, r"(?m)^ci:.*\bmerge-queue-policy\b")
+        self.assertRegex(
+            precommit,
+            r"(?ms)^      - id: merge-queue-policy\n.*?^        entry: \.?/scripts/test-merge-queue-policy\.py$",
+        )
+        self.assertIn("python3 scripts/test-merge-queue-policy.py", required_workflow)
 
 
 if __name__ == "__main__":

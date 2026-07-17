@@ -53,6 +53,54 @@ jobs:
           BUILD_TYPE: ${{ matrix.build_type }}
         run: ctest --preset "${BUILD_TYPE}"
 
+  build:
+    name: build
+    runs-on: ubuntu-24.04
+    needs: [build-test]
+    if: always()
+    steps:
+      - name: Check build matrix result
+        env:
+          RESULT: ${{ needs.build-test.result }}
+        run: |
+          if [ "${RESULT}" != "success" ]; then
+            echo "Build and Test matrix failed with: ${RESULT}"
+            exit 1
+          fi
+          echo "Build and Test matrix passed"
+
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-24.04
+    needs: [build-test]
+    if: always()
+    steps:
+      - name: Check unit test matrix result
+        env:
+          RESULT: ${{ needs.build-test.result }}
+        run: |
+          if [ "${RESULT}" != "success" ]; then
+            echo "Build and Test unit matrix failed with: ${RESULT}"
+            exit 1
+          fi
+          echo "Build and Test unit matrix passed"
+
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    needs: [build-test]
+    if: always()
+    steps:
+      - name: Check test matrix result
+        env:
+          RESULT: ${{ needs.build-test.result }}
+        run: |
+          if [ "${RESULT}" != "success" ]; then
+            echo "Build and Test test matrix failed with: ${RESULT}"
+            exit 1
+          fi
+          echo "Build and Test test matrix passed"
+
   check-all:
     name: All Build/Test Checks
     runs-on: ubuntu-24.04

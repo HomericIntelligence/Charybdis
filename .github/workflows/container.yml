@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
@@ -59,3 +61,19 @@ jobs:
             echo "Docker build failed"; exit 1
           fi
           echo "Docker build passed"
+
+  package:
+    name: package
+    needs: [docker]
+    runs-on: ubuntu-24.04
+    if: always()
+    steps:
+      - name: Check container build result
+        env:
+          RESULT: ${{ needs.docker.result }}
+        run: |
+          if [ "${RESULT}" != "success" ]; then
+            echo "Container package build failed with: ${RESULT}"
+            exit 1
+          fi
+          echo "Container package build passed"

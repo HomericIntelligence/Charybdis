@@ -57,6 +57,28 @@ jobs:
       - name: Lint Markdown documentation
         run: markdownlint --config .markdownlint.yaml '**/*.md' --ignore node_modules --ignore build
 
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    needs: [clang-format, clang-tidy, action-pins, markdown-lint]
+    if: always()
+    steps:
+      - name: Check static analysis results
+        env:
+          R_FMT: ${{ needs.clang-format.result }}
+          R_TIDY: ${{ needs.clang-tidy.result }}
+          R_PINS: ${{ needs.action-pins.result }}
+          R_MD: ${{ needs.markdown-lint.result }}
+        run: |
+          if [ "${R_FMT}" != "success" ] || \
+             [ "${R_TIDY}" != "success" ] || \
+             [ "${R_PINS}" != "success" ] || \
+             [ "${R_MD}" != "success" ]; then
+            echo "Static analysis failed"
+            exit 1
+          fi
+          echo "Static analysis passed"
+
   check-all:
     name: All Static Analysis Checks
     runs-on: ubuntu-24.04

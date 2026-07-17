@@ -45,8 +45,11 @@ format-check:
 coverage: deps
   cmake --preset coverage && cmake --build --preset coverage && ./scripts/coverage.sh
 
+merge-queue-policy:
+  ./scripts/test-merge-queue-policy.py
+
 clean:
   rm -rf build install
 
-ci:
+ci: merge-queue-policy
   cmake --preset ci && cmake --build --preset ci && ctest --preset ci
