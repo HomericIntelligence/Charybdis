@@ -21,18 +21,14 @@ The required-context carriers support `push` and `pull_request` on `main` plus
 - `.github/workflows/_required.yml`
 - `.github/workflows/build-test.yml`
 - `.github/workflows/code-coverage.yml`
+- `.github/workflows/integration-tests.yml`
 - `.github/workflows/static-analysis.yml`
 
-`.github/workflows/integration-tests.yml` also handles `merge_group` so the
-integration suite executes in the queue, but its `integration-tests-run` job
-is not a required-context carrier.
-
-The required `integration-tests` context is emitted exactly once by the
-`integration-tests` fan-in job in `.github/workflows/_required.yml`. The
-dedicated integration workflow keeps its execution result separate as
-`integration-tests-run`; it is diagnostic and does not replace the live
-required context. The release publisher remains tag/manual-only and must not
-run for merge groups.
+`.github/workflows/integration-tests.yml` emits the required
+`integration-tests` context directly from the real integration suite. The
+context is emitted exactly once: `_required.yml` does not create a merge-group
+skip/pass proxy for it. The release publisher remains tag/manual-only and must
+not run for merge groups.
 
 Run the executable policy regression test with:
 

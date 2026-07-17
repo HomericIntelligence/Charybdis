@@ -64,32 +64,9 @@ jobs:
         if: github.event_name != 'workflow_run'
         run: echo "Not a workflow_run event — pass (actual work done by Build and Test workflow)"
 
-  integration-tests:
-    name: integration-tests
-    runs-on: ubuntu-24.04
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow.name == 'Integration Tests'
-    steps:
-      - name: Check Integration Tests result
-        if: github.event_name == 'workflow_run'
-        env:
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          if [ "${CONCLUSION}" != "success" ]; then
-            echo "Integration Tests workflow failed with: ${CONCLUSION}"
-            exit 1
-          fi
-          echo "Integration Tests passed"
-      - name: Skip (not triggered by this workflow)
-        if: github.event_name != 'workflow_run'
-        run: echo "Not a workflow_run event — pass (actual work done by Integration Tests workflow)"
-
   # Canonical aggregate `test` check for the Odysseus ecosystem board.
-  # Charybdis keeps the split `unit-tests` / `integration-tests` sub-checks
-  # above; this job surfaces a single `test` name that reflects either test
-  # workflow. The real test work runs in "Build and Test" (unit) and
-  # "Integration Tests" (integration); this fan-in mirrors their conclusion.
+  # The real test work runs in "Build and Test" (unit) and "Integration Tests"
+  # (integration); this fan-in mirrors either workflow's conclusion.
   test:
     name: test
     runs-on: ubuntu-24.04

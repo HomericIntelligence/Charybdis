@@ -10,7 +10,7 @@ on:
 
 jobs:
   integration:
-    name: integration-tests-run
+    name: integration-tests
     runs-on: ubuntu-24.04
 
     services:

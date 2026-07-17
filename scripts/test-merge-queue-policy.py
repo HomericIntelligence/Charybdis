@@ -50,12 +50,11 @@ EXPECTED_REQUIRED_WORKFLOWS = {
     "_required.yml",
     "build-test.yml",
     "code-coverage.yml",
+    "integration-tests.yml",
     "static-analysis.yml",
 }
 
-EXPECTED_MERGE_GROUP_WORKFLOWS = EXPECTED_REQUIRED_WORKFLOWS | {
-    "integration-tests.yml",
-}
+EXPECTED_MERGE_GROUP_WORKFLOWS = EXPECTED_REQUIRED_WORKFLOWS
 
 
 def _inline_list(value: str) -> list[str]:
@@ -119,6 +118,20 @@ def _job_contexts(path: Path) -> list[tuple[str, str]]:
         contexts.append((job_id, job_name or job_id))
 
     return contexts
+
+
+def _job_section(path: Path, job_id: str) -> str:
+    """Return one job definition from a workflow's jobs section."""
+    lines = path.read_text().splitlines()
+    start = lines.index("jobs:") + 1
+    job_line = f"  {job_id}:"
+    job_start = next(index for index in range(start, len(lines)) if lines[index] == job_line)
+    job_end = len(lines)
+    for index in range(job_start + 1, len(lines)):
+        if re.match(r"^  [A-Za-z0-9_-]+:\s*$", lines[index]):
+            job_end = index
+            break
+    return "\n".join(lines[job_start:job_end])
 
 
 def _job_names(path: Path) -> list[str]:
@@ -192,6 +205,21 @@ class MergeQueuePolicyTests(unittest.TestCase):
         }
 
         self.assertEqual(merge_group_workflows, EXPECTED_MERGE_GROUP_WORKFLOWS)
+
+    def test_merge_group_integration_context_waits_for_actual_suite(self) -> None:
+        integration_workflow = WORKFLOWS_DIR / "integration-tests.yml"
+        required_workflow = WORKFLOWS_DIR / "_required.yml"
+
+        self.assertEqual(
+            _context_emitters("integration-tests"),
+            ["integration-tests.yml:integration"],
+        )
+        self.assertEqual(
+            _triggers(integration_workflow)["merge_group"],
+            {"types": ["checks_requested"]},
+        )
+        self.assertNotIn("integration-tests", _job_names(required_workflow))
+        self.assertNotRegex(_job_section(integration_workflow, "integration"), r"(?m)^    if:")
 
     def test_required_workflow_preserves_workflow_run_fan_in(self) -> None:
         triggers = _triggers(WORKFLOWS_DIR / "_required.yml")
