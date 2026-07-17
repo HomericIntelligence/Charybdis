@@ -62,10 +62,14 @@ EXPECTED_MERGE_GROUP_WORKFLOWS = EXPECTED_REQUIRED_WORKFLOWS
 EXPECTED_FAN_IN_EMITTERS = {
     "build": ("build-test.yml", "build"),
     "unit-tests": ("build-test.yml", "unit-tests"),
-    "test": ("build-test.yml", "test"),
     "lint": ("static-analysis.yml", "lint"),
     "package": ("container.yml", "package"),
 }
+
+EXPECTED_TEST_EMITTERS = [
+    "build-test.yml:test",
+    "integration-tests.yml:test",
+]
 
 
 def _inline_list(value: str) -> list[str]:
@@ -199,7 +203,7 @@ class MergeQueuePolicyTests(unittest.TestCase):
         duplicate_emitters = {
             context: emitters
             for context, emitters in emitters_by_context.items()
-            if len(emitters) > 1
+            if len(emitters) > 1 and context != "test"
         }
         self.assertEqual(
             duplicate_emitters,
@@ -207,6 +211,7 @@ class MergeQueuePolicyTests(unittest.TestCase):
             "each required context must have exactly one emitter; duplicates: "
             f"{duplicate_emitters}",
         )
+        self.assertEqual(emitters_by_context["test"], EXPECTED_TEST_EMITTERS)
 
     def test_expected_workflows_handle_merge_groups(self) -> None:
         merge_group_workflows = {
@@ -231,6 +236,28 @@ class MergeQueuePolicyTests(unittest.TestCase):
         )
         self.assertNotIn("integration-tests", _job_names(required_workflow))
         self.assertNotRegex(_job_section(integration_workflow, "integration"), r"(?m)^    if:")
+
+    def test_test_context_preserves_both_upstream_paths_without_merge_group_early_pass(
+        self,
+    ) -> None:
+        build_test = _job_section(WORKFLOWS_DIR / "build-test.yml", "test")
+        integration_tests = _job_section(
+            WORKFLOWS_DIR / "integration-tests.yml", "test"
+        )
+
+        self.assertEqual(_context_emitters("test"), EXPECTED_TEST_EMITTERS)
+        self.assertIn("needs: [build-test]", build_test)
+        self.assertIn(
+            "if: always() && github.event_name != 'merge_group'", build_test
+        )
+        self.assertIn("needs: [integration]", integration_tests)
+        self.assertIn(
+            "if: always() && github.event_name == 'merge_group'", integration_tests
+        )
+        for section in (build_test, integration_tests):
+            self.assertIn("needs.", section)
+            self.assertIn("result", section)
+            self.assertNotIn("Skip", section)
 
     def test_required_workflow_preserves_workflow_run_fan_in(self) -> None:
         triggers = _triggers(WORKFLOWS_DIR / "_required.yml")
@@ -269,6 +296,40 @@ class MergeQueuePolicyTests(unittest.TestCase):
             self.assertIn("result", section)
             self.assertNotRegex(section, r"(?m)^    if: >")
             self.assertNotIn("Skip", section)
+
+    def test_aggregate_fan_ins_have_explicit_result_backed_contracts(self) -> None:
+        expected = {
+            "lint": ("static-analysis.yml", "lint", "[clang-format, clang-tidy, action-pins, markdown-lint]"),
+            "package": ("container.yml", "package", "[docker]"),
+        }
+
+        for context, (workflow_name, job_id, needs) in expected.items():
+            section = _job_section(WORKFLOWS_DIR / workflow_name, job_id)
+            self.assertEqual(
+                _context_emitters(context), [f"{workflow_name}:{job_id}"]
+            )
+            self.assertIn(f"needs: {needs}", section)
+            self.assertIn("if: always()", section)
+            self.assertIn("needs.", section)
+            self.assertIn("result", section)
+            self.assertNotIn("Skip", section)
+
+    def test_container_publish_permission_is_not_granted_to_merge_groups(self) -> None:
+        workflow = WORKFLOWS_DIR / "container.yml"
+        workflow_text = workflow.read_text()
+        docker = _job_section(workflow, "docker")
+        publish = _job_section(workflow, "publish")
+
+        self.assertNotIn("packages: write", workflow_text[: workflow_text.index("jobs:")])
+        self.assertNotIn("packages: write", docker)
+        self.assertIn(
+            "if: github.event_name == 'push' && github.ref == 'refs/heads/main'",
+            publish,
+        )
+        self.assertRegex(
+            publish,
+            r"(?ms)^    permissions:\n      contents: read\n      packages: write$",
+        )
 
     def test_required_proxy_workflow_does_not_emit_fan_in_contexts(self) -> None:
         required_workflow = WORKFLOWS_DIR / "_required.yml"
