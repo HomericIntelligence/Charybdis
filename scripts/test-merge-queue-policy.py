@@ -68,7 +68,6 @@ EXPECTED_FAN_IN_EMITTERS = {
 
 EXPECTED_TEST_EMITTERS = [
     "build-test.yml:test",
-    "integration-tests.yml:test",
 ]
 
 
@@ -203,7 +202,7 @@ class MergeQueuePolicyTests(unittest.TestCase):
         duplicate_emitters = {
             context: emitters
             for context, emitters in emitters_by_context.items()
-            if len(emitters) > 1 and context != "test"
+            if len(emitters) > 1
         }
         self.assertEqual(
             duplicate_emitters,
@@ -237,27 +236,32 @@ class MergeQueuePolicyTests(unittest.TestCase):
         self.assertNotIn("integration-tests", _job_names(required_workflow))
         self.assertNotRegex(_job_section(integration_workflow, "integration"), r"(?m)^    if:")
 
-    def test_test_context_preserves_both_upstream_paths_without_merge_group_early_pass(
-        self,
-    ) -> None:
+    def test_test_context_has_one_authoritative_build_test_producer(self) -> None:
         build_test = _job_section(WORKFLOWS_DIR / "build-test.yml", "test")
-        integration_tests = _job_section(
-            WORKFLOWS_DIR / "integration-tests.yml", "test"
-        )
 
         self.assertEqual(_context_emitters("test"), EXPECTED_TEST_EMITTERS)
+        self.assertEqual(
+            _triggers(WORKFLOWS_DIR / "build-test.yml"),
+            {
+                "push": {"branches": ["main"]},
+                "pull_request": {"branches": ["main"]},
+                "merge_group": {"types": ["checks_requested"]},
+            },
+        )
         self.assertIn("needs: [build-test]", build_test)
-        self.assertIn(
-            "if: always() && github.event_name != 'merge_group'", build_test
-        )
-        self.assertIn("needs: [integration]", integration_tests)
-        self.assertIn(
-            "if: always() && github.event_name == 'merge_group'", integration_tests
-        )
-        for section in (build_test, integration_tests):
-            self.assertIn("needs.", section)
-            self.assertIn("result", section)
-            self.assertNotIn("Skip", section)
+        self.assertIn("if: always()", build_test)
+        self.assertNotRegex(build_test, r"github\.event_name")
+        self.assertIn("RESULT: ${{ needs.build-test.result }}", build_test)
+        self.assertIn('if [ "${RESULT}" != "success" ]', build_test)
+        self.assertNotIn("Skip", build_test)
+
+    def test_docs_preserve_build_and_integration_context_semantics(self) -> None:
+        document = DOC_PATH.read_text()
+
+        self.assertIn("single authoritative `test` context", document)
+        self.assertIn("Build\nand Test workflow", document)
+        self.assertIn("`integration-tests`\ncontext", document)
+        self.assertIn("does not emit another same-named `test` job", document)
 
     def test_required_workflow_preserves_workflow_run_fan_in(self) -> None:
         triggers = _triggers(WORKFLOWS_DIR / "_required.yml")

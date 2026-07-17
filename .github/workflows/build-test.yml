@@ -89,7 +89,7 @@ jobs:
     name: test
     runs-on: ubuntu-24.04
     needs: [build-test]
-    if: always() && github.event_name != 'merge_group'
+    if: always()
     steps:
       - name: Check test matrix result
         env:

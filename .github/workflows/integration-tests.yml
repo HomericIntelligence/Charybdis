@@ -167,19 +167,3 @@ jobs:
             build/ci/Testing/Temporary/CTestCostData.txt
           if-no-files-found: ignore
           retention-days: 7
-
-  test:
-    name: test
-    runs-on: ubuntu-24.04
-    needs: [integration]
-    if: always() && github.event_name == 'merge_group'
-    steps:
-      - name: Check integration test result
-        env:
-          RESULT: ${{ needs.integration.result }}
-        run: |
-          if [ "${RESULT}" != "success" ]; then
-            echo "Integration Tests workflow failed with: ${RESULT}"
-            exit 1
-          fi
-          echo "Integration Tests passed"

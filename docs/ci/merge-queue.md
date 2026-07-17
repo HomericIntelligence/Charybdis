@@ -29,16 +29,18 @@ The required `build`, `unit-tests`, `test`, `lint`, and `package` contexts are
 result fan-ins in the workflows that perform the underlying work. Each waits
 for its `needs` jobs with `always()` and fails from the upstream result, so a
 merge-group check cannot pass before the real build, test, lint, or package job
-has completed. The pre-existing `test` context contract is preserved: the
-push/pull-request path is backed by Build and Test, while the merge-group path
-is backed by Integration Tests. Those event-scoped fan-ins are mutually
-exclusive, so merge groups cannot receive an early `test` success from the
-build path. `_required.yml` contains independent checks only; it does not
-create merge-group skip/pass proxies for these contexts. The
-`integration-tests` context is emitted exactly once by the real integration
-suite. Container builds have read-only package permissions; only the trusted
-`push` to `main` publish job receives `packages: write`. The release publisher
-remains tag/manual-only and must not run for merge groups.
+has completed. The single authoritative `test` context is emitted by the Build
+and Test workflow for `pull_request`, `push`, and `merge_group`, and its
+`needs: [build-test]` fan-in checks the real matrix result. The separate
+`Integration Tests` workflow emits only the required `integration-tests`
+context from its real suite; it does not emit another same-named `test` job.
+This preserves both prior coverage paths without allowing a skipped job or an
+early pass from one workflow to satisfy the other's required context.
+`_required.yml` contains independent checks only; it does not create
+merge-group skip/pass proxies for these contexts. Container builds have
+read-only package permissions; only the trusted `push` to `main` publish job
+receives `packages: write`. The release publisher remains tag/manual-only and
+must not run for merge groups.
 
 Run the executable policy regression test with:
 
