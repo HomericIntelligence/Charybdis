@@ -6,7 +6,6 @@ from __future__ import annotations
 import json
 import re
 import unittest
-from collections import Counter
 from pathlib import Path
 
 
@@ -51,8 +50,11 @@ EXPECTED_REQUIRED_WORKFLOWS = {
     "_required.yml",
     "build-test.yml",
     "code-coverage.yml",
-    "integration-tests.yml",
     "static-analysis.yml",
+}
+
+EXPECTED_MERGE_GROUP_WORKFLOWS = EXPECTED_REQUIRED_WORKFLOWS | {
+    "integration-tests.yml",
 }
 
 
@@ -91,24 +93,47 @@ def _triggers(path: Path) -> dict[str, dict[str, list[str]]]:
     return events
 
 
-def _job_names(path: Path) -> list[str]:
-    """Return explicit job check names from a workflow."""
+def _job_contexts(path: Path) -> list[tuple[str, str]]:
+    """Return each job id and the check context it emits."""
     lines = path.read_text().splitlines()
     start = lines.index("jobs:") + 1
-    names: list[str] = []
-    in_job = False
+    contexts: list[tuple[str, str]] = []
+    job_id: str | None = None
+    job_name: str | None = None
 
     for line in lines[start:]:
         if line and not line.startswith((" ", "#")):
             break
-        if re.match(r"^  [A-Za-z0-9_-]+:\s*$", line):
-            in_job = True
+        job_match = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", line)
+        if job_match:
+            if job_id is not None:
+                contexts.append((job_id, job_name or job_id))
+            job_id = job_match.group(1)
+            job_name = None
             continue
         name_match = re.match(r"^    name:\s*(.+?)\s*$", line)
-        if in_job and name_match:
-            names.append(name_match.group(1).strip("'\""))
+        if job_id is not None and name_match:
+            job_name = name_match.group(1).strip("'\"")
 
-    return names
+    if job_id is not None:
+        contexts.append((job_id, job_name or job_id))
+
+    return contexts
+
+
+def _job_names(path: Path) -> list[str]:
+    """Return job check contexts, including ids without an explicit name."""
+    return [name for _, name in _job_contexts(path)]
+
+
+def _context_emitters(context: str) -> list[str]:
+    """Return workflow/job emitters for a required check context."""
+    emitters: list[str] = []
+    for workflow in sorted(WORKFLOWS_DIR.glob("*.yml")):
+        for job_id, job_name in _job_contexts(workflow):
+            if job_name == context:
+                emitters.append(f"{workflow.name}:{job_id}")
+    return emitters
 
 
 def _policy() -> dict[str, object]:
@@ -144,19 +169,29 @@ class MergeQueuePolicyTests(unittest.TestCase):
 
         self.assertEqual(carriers, EXPECTED_REQUIRED_WORKFLOWS)
         self.assertEqual(set(emitted), policy_contexts)
+        emitters_by_context = {
+            context: _context_emitters(context) for context in sorted(policy_contexts)
+        }
+        duplicate_emitters = {
+            context: emitters
+            for context, emitters in emitters_by_context.items()
+            if len(emitters) > 1
+        }
         self.assertEqual(
-            {name: count for name, count in Counter(emitted).items() if count > 1},
-            {"integration-tests": 2},
+            duplicate_emitters,
+            {},
+            "each required context must have exactly one emitter; duplicates: "
+            f"{duplicate_emitters}",
         )
 
-    def test_only_required_context_carriers_handle_merge_groups(self) -> None:
+    def test_expected_workflows_handle_merge_groups(self) -> None:
         merge_group_workflows = {
             workflow.name
             for workflow in WORKFLOWS_DIR.glob("*.yml")
             if "merge_group" in _triggers(workflow)
         }
 
-        self.assertEqual(merge_group_workflows, EXPECTED_REQUIRED_WORKFLOWS)
+        self.assertEqual(merge_group_workflows, EXPECTED_MERGE_GROUP_WORKFLOWS)
 
     def test_required_workflow_preserves_workflow_run_fan_in(self) -> None:
         triggers = _triggers(WORKFLOWS_DIR / "_required.yml")
