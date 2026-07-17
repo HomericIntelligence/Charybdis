@@ -6,6 +6,8 @@ on:
     types: [completed]
   pull_request:
     branches: [main]
+  merge_group:
+    types: [checks_requested]
   push:
     branches: [main]
 
@@ -19,119 +21,6 @@ jobs:
   # ---------------------------------------------------------------------------
   # Fan-in jobs: reflect the result of upstream workflows
   # ---------------------------------------------------------------------------
-
-  build:
-    name: build
-    runs-on: ubuntu-24.04
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow.name == 'Build and Test'
-    steps:
-      - name: Check Build and Test result
-        if: github.event_name == 'workflow_run'
-        env:
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          if [ "${CONCLUSION}" != "success" ]; then
-            echo "Build and Test workflow failed with: ${CONCLUSION}"
-            exit 1
-          fi
-          echo "Build and Test passed"
-      - name: Skip (not triggered by this workflow)
-        if: github.event_name != 'workflow_run'
-        run: echo "Not a workflow_run event — pass (actual work done by Build and Test workflow)"
-
-  unit-tests:
-    name: unit-tests
-    runs-on: ubuntu-24.04
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow.name == 'Build and Test'
-    steps:
-      - name: Check Build and Test result
-        if: github.event_name == 'workflow_run'
-        env:
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          if [ "${CONCLUSION}" != "success" ]; then
-            echo "Build and Test workflow failed with: ${CONCLUSION}"
-            exit 1
-          fi
-          echo "Build and Test passed"
-      - name: Skip (not triggered by this workflow)
-        if: github.event_name != 'workflow_run'
-        run: echo "Not a workflow_run event — pass (actual work done by Build and Test workflow)"
-
-  integration-tests:
-    name: integration-tests
-    runs-on: ubuntu-24.04
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow.name == 'Integration Tests'
-    steps:
-      - name: Check Integration Tests result
-        if: github.event_name == 'workflow_run'
-        env:
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          if [ "${CONCLUSION}" != "success" ]; then
-            echo "Integration Tests workflow failed with: ${CONCLUSION}"
-            exit 1
-          fi
-          echo "Integration Tests passed"
-      - name: Skip (not triggered by this workflow)
-        if: github.event_name != 'workflow_run'
-        run: echo "Not a workflow_run event — pass (actual work done by Integration Tests workflow)"
-
-  # Canonical aggregate `test` check for the Odysseus ecosystem board.
-  # Charybdis keeps the split `unit-tests` / `integration-tests` sub-checks
-  # above; this job surfaces a single `test` name that reflects either test
-  # workflow. The real test work runs in "Build and Test" (unit) and
-  # "Integration Tests" (integration); this fan-in mirrors their conclusion.
-  test:
-    name: test
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow.name == 'Build and Test' ||
-      github.event.workflow.name == 'Integration Tests'
-    steps:
-      - name: Check upstream test workflow result
-        if: github.event_name == 'workflow_run'
-        env:
-          WORKFLOW: ${{ github.event.workflow.name }}
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          if [ "${CONCLUSION}" != "success" ]; then
-            echo "${WORKFLOW} workflow failed with: ${CONCLUSION}"
-            exit 1
-          fi
-          echo "${WORKFLOW} passed"
-      - name: Skip (not triggered by this workflow)
-        if: github.event_name != 'workflow_run'
-        run: echo "Not a workflow_run event — pass (actual work done by Build and Test / Integration Tests workflows)"
-
-  lint:
-    name: lint
-    runs-on: ubuntu-24.04
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow.name == 'Static Analysis'
-    steps:
-      - name: Check Static Analysis result
-        if: github.event_name == 'workflow_run'
-        env:
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          if [ "${CONCLUSION}" != "success" ]; then
-            echo "Static Analysis workflow failed with: ${CONCLUSION}"
-            exit 1
-          fi
-          echo "Static Analysis passed"
-      - name: Skip (not triggered by this workflow)
-        if: github.event_name != 'workflow_run'
-        run: echo "Not a workflow_run event — pass (actual work done by Static Analysis workflow)"
 
   security-codeql:
     name: security/codeql
@@ -199,32 +88,6 @@ jobs:
   docker-build:
     name: docker-build
     runs-on: ubuntu-24.04
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow.name == 'Container Build and Publish'
-    steps:
-      - name: Check Container Build and Publish result
-        if: github.event_name == 'workflow_run'
-        env:
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          if [ "${CONCLUSION}" != "success" ]; then
-            echo "Container Build and Publish workflow failed with: ${CONCLUSION}"
-            exit 1
-          fi
-          echo "Container Build and Publish passed"
-      - name: Skip (not triggered by this workflow)
-        if: github.event_name != 'workflow_run'
-        run: echo "Not a workflow_run event — pass (actual work done by Container Build and Publish workflow)"
-
-  # Canonical `package` check for the Odysseus ecosystem board. Charybdis's
-  # distributable is the container image built by "Container Build and Publish"
-  # (also surfaced as the custom `docker-build` sub-check above). This fan-in
-  # reflects that workflow's result under the canonical `package` name.
-  package:
-    name: package
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
     if: >
       github.event_name != 'workflow_run' ||
       github.event.workflow.name == 'Container Build and Publish'
@@ -374,6 +237,8 @@ jobs:
           else
             echo "No composite actions to validate."
           fi
+      - name: Validate merge queue policy and fan-ins
+        run: python3 scripts/test-merge-queue-policy.py
       - name: Lint CHANGELOG.md (markdownlint)
         # Explicit CI coverage so CHANGELOG format drift is caught even if
         # contributors skip pre-commit hooks. Uses the same config as the
