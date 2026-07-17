@@ -277,6 +277,13 @@ gh pr create --title "[Type] Brief description" --body "Closes #<issue-number>"
 - PR title should be clear and descriptive
 - All CI checks must pass (build, test, lint, format)
 
+### Merge queue rollout
+
+Required checks are prepared for merge groups, but queue activation is a
+separate Odysseus-controlled operator action. See
+[`docs/ci/merge-queue.md`](docs/ci/merge-queue.md) for the policy contract,
+review gate, activation boundary, and post-merge smoke requirement.
+
 ### Never Push Directly to Main
 
 The `main` branch is protected. All changes must go through pull requests.
