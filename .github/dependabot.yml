@@ -9,12 +9,11 @@ updates:
     # human inspection, as required by branch protection rules.
     reviewers:
       - HomericIntelligence/maintainers
-    # Group setup-pixi updates so the `pixi-version:` parameter in
-    # lock-check.yml is reviewed alongside the `uses:` SHA bump.
-    # Dependabot tracks the `uses:` ref automatically; the inline
-    # `pixi-version:` string is manually advanced in the same PR.
+    # Group setup-uv updates so the action SHA bump is reviewed as a unit.
+    # ADR-018: uv replaces pixi; the build toolchain is uv-managed and the
+    # workflows use astral-sh/setup-uv (formerly prefix-dev/setup-pixi).
     # See HomericIntelligence/Charybdis#122.
     groups:
-      setup-pixi:
+      setup-uv:
         patterns:
-          - "prefix-dev/setup-pixi"
+          - "astral-sh/setup-uv"

@@ -23,12 +23,16 @@ Charybdis against a mesh that carries sensitive workloads.
 
 ## Prerequisites
 
-- [Pixi](https://pixi.sh/) ≥ 0.24 — manages all other dependencies
-- CMake ≥ 3.20 (installed by Pixi)
-- Ninja ≥ 1.11 (installed by Pixi)
-- GCC ≥ 12 or Clang ≥ 15 (installed by Pixi via `cxx-compiler ≥ 1.7`)
-- Conan ≥ 2.0 (installed by Pixi)
-- clang-tools ≥ 17 (installed by Pixi — provides clang-format and clang-tidy)
+- [uv](https://docs.astral.sh/uv/) — manages the build toolchain as locked PyPI
+  wheels (Odysseus ADR-018)
+- CMake ≥ 3.20 (installed by uv)
+- Ninja ≥ 1.11 (installed by uv)
+- Conan ≥ 2.0 (installed by uv)
+- gcovr ≥ 7 (installed by uv)
+- GCC ≥ 12 or Clang ≥ 15 — system toolchain (apt), e.g.
+  `sudo apt-get install build-essential`
+- clang-tools ≥ 17 — system (apt); provides clang-format and clang-tidy, e.g.
+  `sudo apt-get install clang-tidy clang-format`
 - [Just](https://just.systems/) — command runner
 
 ## Quick Start
@@ -38,10 +42,10 @@ Charybdis against a mesh that carries sensitive workloads.
 git clone https://github.com/HomericIntelligence/Charybdis.git
 cd Charybdis
 
-# Activate the Pixi environment (installs CMake, Ninja, clang-tools, gcovr)
-pixi shell
+# Install the uv-managed build toolchain (CMake, Ninja, Conan, gcovr)
+uv sync
 
-# Install Conan deps, configure, and build
+# Install Conan deps, configure, and build (justfile recipes run tools via `uv run`)
 just build
 
 # Run all tests
@@ -149,7 +153,8 @@ Resilience metrics are reported to `hi.logs.>` for ingestion by Argus/Prometheus
 
 ## Development
 
-All recipes are run inside `pixi shell` or prefixed with `pixi run`:
+Recipes run the uv-managed toolchain via `uv run` internally; run `uv sync` once
+to provision it, then invoke recipes directly (`just build`, `just test`, …):
 
 ```text
 just build          # Install Conan deps, configure, and build (debug)
@@ -221,11 +226,11 @@ export NATS_URL=nats://your-nats-host:4222
 
 **Build fails with "conan: command not found"**
 
-You are not inside the Pixi environment. Run `pixi shell` first, or prefix commands with
-`pixi run`:
+The uv-managed toolchain is not provisioned. Run `uv sync` first, or prefix
+commands with `uv run`:
 
 ```bash
-pixi run just build
+uv sync && just build
 ```
 
 ## License

@@ -22,13 +22,14 @@ For an overview of the full ecosystem, see the
 
 - [Git](https://git-scm.com/)
 - [GitHub CLI](https://cli.github.com/) (`gh`)
-- [Pixi](https://pixi.sh/) for environment management
+- [uv](https://docs.astral.sh/uv/) — manages the build toolchain (CMake, Ninja,
+  Conan, gcovr) as locked PyPI wheels (Odysseus ADR-018)
 - [Just](https://just.systems/) as the command runner
-- C++20 compiler (GCC 12+ or Clang 15+) — provided automatically by `pixi shell`
-  (via `cxx-compiler >= 1.7` in `pixi.toml`); manual compiler installation is only
-  needed if you build outside the Pixi environment.
-- [Conan 2.x](https://docs.conan.io/2/) for C++ dependency management
-  (`pip install 'conan>=2.0'`); see [Conan Setup](#conan-setup) below.
+- C++20 compiler (GCC 12+ or Clang 15+) — installed from the system (apt), e.g.
+  `sudo apt-get install build-essential`. Per ADR-018 the compiler is NOT
+  provided by uv; only the CMake/Ninja/Conan/gcovr toolchain is.
+- [Conan 2.x](https://docs.conan.io/2/) for C++ dependency management — installed
+  by `uv sync` (declared in `pyproject.toml`); see [Conan Setup](#conan-setup) below.
 
 ### Environment Setup
 
@@ -37,10 +38,10 @@ For an overview of the full ecosystem, see the
 git clone https://github.com/HomericIntelligence/Charybdis.git
 cd Charybdis
 
-# Activate the Pixi environment (installs CMake, Ninja, clang-tools, gcovr)
-pixi shell
+# Install the uv-managed build toolchain (CMake, Ninja, Conan, gcovr)
+uv sync
 
-# Build the project
+# Build the project (justfile recipes invoke the toolchain via `uv run`)
 just build
 
 # Run tests to verify setup
@@ -50,11 +51,11 @@ just test
 ### Conan Setup
 
 Dependencies (GoogleTest, cpp-httplib, nlohmann_json) are managed by Conan 2.x. The
-Pixi environment ships Conan, so `pixi shell` is sufficient for most contributors. To
-bootstrap manually:
+uv-managed toolchain ships Conan, so `uv sync` is sufficient for most contributors
+(recipes call it via `uv run conan …`). To bootstrap Conan manually:
 
 ```bash
-# 1. Install Conan 2.x (skipped if you use `pixi shell`)
+# 1. Install Conan 2.x (skipped if you use `uv sync`)
 pip install 'conan>=2.0'
 
 # 2. Detect a default profile (creates ~/.conan2/profiles/default)

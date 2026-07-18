@@ -12,3 +12,5 @@ cmake_install.cmake
 CTestTestfile.cmake
 _deps/
 CMakeUserPresets.json
+# uv (ADR-018): uv.lock IS committed; only the virtualenv is ignored.
+.venv/

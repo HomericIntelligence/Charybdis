@@ -34,7 +34,8 @@ provably safe, reproducible, and peer-reviewed build.
 ### Reproducible builds
 
 - [ ] #18 Commit `conan.lock` so Conan dependency versions are pinned
-- [ ] #19 Remove `pixi.lock` from `.gitignore` — commit tool version lock
+- [ ] #19 Commit the toolchain lock file (`uv.lock`, ADR-018) so build-tool
+      versions are pinned
 
 ### CI hygiene
 
@@ -44,7 +45,7 @@ provably safe, reproducible, and peer-reviewed build.
 ### Minimum documentation
 
 - [ ] #28 Expand `README.md` — add env vars, prerequisites, architecture overview
-- [ ] #29 Fix `CONTRIBUTING.md` — replace FetchContent references with Conan/pixi
+- [ ] #29 Fix `CONTRIBUTING.md` — replace FetchContent references with Conan/uv
 - [ ] #30 *(this issue)* Define milestones and publish this roadmap
 
 ---
