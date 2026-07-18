@@ -46,14 +46,24 @@ RUN groupadd -g ${GROUP_ID} ${USER_NAME} \
 # needed to resolve the toolchain, so this layer caches independently of source.
 # UV_LINK_MODE=copy keeps the venv self-contained; UV_PROJECT_ENVIRONMENT pins
 # its path so the non-root builder user can use it after the chown below.
+#
+# This image ships no system Python (apt python3/python3-venv were dropped per
+# ADR-018), so `uv sync` downloads a uv-managed CPython to satisfy the venv. By
+# default that interpreter lands under root's private home (~/.local/share/uv,
+# mode 0700), which the venv's bin/python symlink then points at — unreachable
+# once we drop to the non-root builder user (every conan/cmake/ninja call would
+# fail with "Permission denied", exit 126). UV_PYTHON_INSTALL_DIR relocates the
+# managed interpreter to a shared path under /opt so it can be chowned to the
+# builder user alongside the venv and stays traversable after `USER` switches.
 ENV UV_PROJECT_ENVIRONMENT=/opt/charybdis-venv \
+    UV_PYTHON_INSTALL_DIR=/opt/uv-python \
     UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     PATH="/opt/charybdis-venv/bin:$PATH"
 WORKDIR /src
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-install-project \
-    && chown -R ${USER_ID}:${GROUP_ID} /opt/charybdis-venv
+    && chown -R ${USER_ID}:${GROUP_ID} /opt/charybdis-venv /opt/uv-python
 
 USER ${USER_NAME}
 
