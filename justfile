@@ -3,16 +3,17 @@ set shell := ["bash", "-c"]
 default:
   @just --list
 
-# Install Conan dependencies (gtest)
+# Install Conan dependencies (gtest). Conan/CMake/Ninja are uv-managed PyPI
+# wheels (ADR-018), so recipes invoke them via `uv run`.
 deps:
-  conan install . --output-folder=build/debug --profile=conan/profiles/debug --build=missing
+  uv run conan install . --output-folder=build/debug --profile=conan/profiles/debug --build=missing
 
 # Install Conan dependencies for release
 deps-release:
-  conan install . --output-folder=build/release --profile=conan/profiles/default --build=missing
+  uv run conan install . --output-folder=build/release --profile=conan/profiles/default --build=missing
 
 build: deps
-  cmake --preset debug && cmake --build --preset debug
+  uv run cmake --preset debug && uv run cmake --build --preset debug
 
 # Pass AGAMEMNON_URL and NATS_URL through to the test process so developers
 # can point integration tests at custom endpoints via their shell env. CTest
@@ -23,7 +24,7 @@ test AGAMEMNON_URL=env_var_or_default("AGAMEMNON_URL", "") NATS_URL=env_var_or_d
   set -euo pipefail
   export AGAMEMNON_URL="{{AGAMEMNON_URL}}"
   export NATS_URL="{{NATS_URL}}"
-  ctest --preset debug --output-on-failure
+  uv run ctest --preset debug --output-on-failure
 
 # Standalone smoke tests for scripts/mock-agamemnon.py (no conan/cmake needed)
 test-mock:
@@ -43,7 +44,7 @@ format-check:
   ./scripts/format.sh --check
 
 coverage: deps
-  cmake --preset coverage && cmake --build --preset coverage && ./scripts/coverage.sh
+  uv run cmake --preset coverage && uv run cmake --build --preset coverage && ./scripts/coverage.sh
 
 merge-queue-policy:
   ./scripts/test-merge-queue-policy.py
@@ -52,4 +53,4 @@ clean:
   rm -rf build install
 
 ci: merge-queue-policy
-  cmake --preset ci && cmake --build --preset ci && ctest --preset ci
+  uv run cmake --preset ci && uv run cmake --build --preset ci && uv run ctest --preset ci

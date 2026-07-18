@@ -25,14 +25,15 @@ if [ -f "${ROOT}/conanfile.py" ]; then
   fi
 fi
 
-if [ -f "${ROOT}/pixi.toml" ]; then
-  PIXI_VERSION=$(grep -m1 '^version' "${ROOT}/pixi.toml" \
+# ADR-018: pixi.toml replaced by pyproject.toml (uv-managed build toolchain).
+if [ -f "${ROOT}/pyproject.toml" ]; then
+  PY_VERSION=$(grep -m1 '^version' "${ROOT}/pyproject.toml" \
     | grep -oP '\d+\.\d+\.\d+' | head -1)
-  if [ -n "${PIXI_VERSION}" ] && [ "${PIXI_VERSION}" != "${CMAKE_VERSION}" ]; then
-    echo "ERROR: pixi.toml version (${PIXI_VERSION}) does not match CMakeLists.txt (${CMAKE_VERSION})" >&2
+  if [ -n "${PY_VERSION}" ] && [ "${PY_VERSION}" != "${CMAKE_VERSION}" ]; then
+    echo "ERROR: pyproject.toml version (${PY_VERSION}) does not match CMakeLists.txt (${CMAKE_VERSION})" >&2
     FAIL=1
   else
-    echo "pixi.toml: ${PIXI_VERSION:-N/A} OK"
+    echo "pyproject.toml: ${PY_VERSION:-N/A} OK"
   fi
 fi
 

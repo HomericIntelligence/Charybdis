@@ -58,7 +58,7 @@ repos:
       - id: version-sync
         name: "Version sync check"
         description: >
-          Verify project version is in sync across CMakeLists.txt, pixi.toml,
+          Verify project version is in sync across CMakeLists.txt, pyproject.toml,
           and any other version-bearing files via scripts/check-version-sync.sh.
           See #163.
         language: script

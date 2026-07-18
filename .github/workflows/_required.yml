@@ -64,8 +64,8 @@ jobs:
         if: github.event_name != 'workflow_run'
         run: echo "Not a workflow_run event — pass (actual work done by Sanitizers workflow)"
 
-  pixi-lock-check:
-    name: pixi-lock-check
+  uv-lock-check:
+    name: uv-lock-check
     runs-on: ubuntu-24.04
     if: >
       github.event_name != 'workflow_run' ||
@@ -263,18 +263,20 @@ jobs:
           fi
           echo "Detected project version: ${VERSION}"
           echo "PROJECT_VERSION=${VERSION}" >> "${GITHUB_ENV}"
-      - name: Verify pixi.toml version matches (if present)
+      - name: Verify pyproject.toml version matches (if present)
+        # ADR-018: pixi.toml is replaced by pyproject.toml (uv). The toolchain
+        # manifest carries the same canonical version as CMakeLists.txt.
         run: |
-          if [ -f pixi.toml ]; then
-            PIXI_VERSION=$(grep -m1 '^version' pixi.toml \
+          if [ -f pyproject.toml ]; then
+            PY_VERSION=$(grep -m1 '^version' pyproject.toml \
               | grep -oP '\d+\.\d+\.\d+' | head -1)
-            if [ -n "${PIXI_VERSION}" ] && [ "${PIXI_VERSION}" != "${PROJECT_VERSION}" ]; then
-              echo "ERROR: pixi.toml version (${PIXI_VERSION}) does not match CMakeLists.txt (${PROJECT_VERSION})"
+            if [ -n "${PY_VERSION}" ] && [ "${PY_VERSION}" != "${PROJECT_VERSION}" ]; then
+              echo "ERROR: pyproject.toml version (${PY_VERSION}) does not match CMakeLists.txt (${PROJECT_VERSION})"
               exit 1
             fi
-            echo "pixi.toml version ${PIXI_VERSION:-N/A} consistent with CMakeLists.txt ${PROJECT_VERSION}"
+            echo "pyproject.toml version ${PY_VERSION:-N/A} consistent with CMakeLists.txt ${PROJECT_VERSION}"
           else
-            echo "No pixi.toml found, skipping cross-check"
+            echo "No pyproject.toml found, skipping cross-check"
           fi
       - name: Verify conanfile.py version matches (if present)
         run: |
