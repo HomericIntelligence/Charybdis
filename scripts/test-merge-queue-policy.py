@@ -57,7 +57,12 @@ EXPECTED_REQUIRED_WORKFLOWS = {
     "static-analysis.yml",
 }
 
-EXPECTED_MERGE_GROUP_WORKFLOWS = EXPECTED_REQUIRED_WORKFLOWS
+# Fast smoke-gate design: full CI runs on pull_request/push only (unchanged);
+# merge_group events run exactly ONE workflow (merge-queue-smoke.yml) with
+# exactly one job emitting the merge-queue-smoke context.
+SMOKE_WORKFLOW = "merge-queue-smoke.yml"
+
+EXPECTED_MERGE_GROUP_WORKFLOWS = {SMOKE_WORKFLOW}
 
 EXPECTED_FAN_IN_EMITTERS = {
     "build": ("build-test.yml", "build"),
@@ -176,7 +181,7 @@ class MergeQueuePolicyTests(unittest.TestCase):
         self.assertEqual(policy["required_contexts"], EXPECTED_CONTEXTS)
         self.assertEqual(policy["merge_queue_rule"], EXPECTED_QUEUE_RULE)
 
-    def test_every_required_context_carrier_handles_merge_groups(self) -> None:
+    def test_every_required_context_carrier_runs_on_push_and_pull_request(self) -> None:
         policy_contexts = set(_policy()["required_contexts"])
         carriers: set[str] = set()
         emitted: list[str] = []
@@ -190,9 +195,9 @@ class MergeQueuePolicyTests(unittest.TestCase):
             triggers = _triggers(workflow)
             self.assertEqual(triggers["push"], {"branches": ["main"]})
             self.assertEqual(triggers["pull_request"], {"branches": ["main"]})
-            self.assertEqual(
-                triggers["merge_group"], {"types": ["checks_requested"]}
-            )
+            # merge_group must not re-run full CI — the queue runs only the
+            # dedicated smoke workflow (runner-slot starvation fix).
+            self.assertNotIn("merge_group", triggers)
 
         self.assertEqual(carriers, EXPECTED_REQUIRED_WORKFLOWS)
         self.assertEqual(set(emitted), policy_contexts)
@@ -221,7 +226,19 @@ class MergeQueuePolicyTests(unittest.TestCase):
 
         self.assertEqual(merge_group_workflows, EXPECTED_MERGE_GROUP_WORKFLOWS)
 
-    def test_merge_group_integration_context_waits_for_actual_suite(self) -> None:
+    def test_merge_queue_smoke_gate_contract(self) -> None:
+        smoke = WORKFLOWS_DIR / SMOKE_WORKFLOW
+
+        # Exactly one merge_group workflow, exactly one job, emitting the
+        # single merge-queue-smoke context the queue gates on.
+        self.assertEqual(
+            _triggers(smoke), {"merge_group": {"types": ["checks_requested"]}}
+        )
+        self.assertEqual(
+            _job_contexts(smoke), [("merge-queue-smoke", "merge-queue-smoke")]
+        )
+
+    def test_integration_context_waits_for_actual_suite(self) -> None:
         integration_workflow = WORKFLOWS_DIR / "integration-tests.yml"
         required_workflow = WORKFLOWS_DIR / "_required.yml"
 
@@ -229,10 +246,7 @@ class MergeQueuePolicyTests(unittest.TestCase):
             _context_emitters("integration-tests"),
             ["integration-tests.yml:integration"],
         )
-        self.assertEqual(
-            _triggers(integration_workflow)["merge_group"],
-            {"types": ["checks_requested"]},
-        )
+        self.assertNotIn("merge_group", _triggers(integration_workflow))
         self.assertNotIn("integration-tests", _job_names(required_workflow))
         self.assertNotRegex(_job_section(integration_workflow, "integration"), r"(?m)^    if:")
 
@@ -245,7 +259,6 @@ class MergeQueuePolicyTests(unittest.TestCase):
             {
                 "push": {"branches": ["main"]},
                 "pull_request": {"branches": ["main"]},
-                "merge_group": {"types": ["checks_requested"]},
             },
         )
         self.assertIn("needs: [build-test]", build_test)
@@ -267,7 +280,7 @@ class MergeQueuePolicyTests(unittest.TestCase):
         triggers = _triggers(WORKFLOWS_DIR / "_required.yml")
 
         self.assertEqual(
-            set(triggers), {"workflow_run", "pull_request", "push", "merge_group"}
+            set(triggers), {"workflow_run", "pull_request", "push"}
         )
 
     def test_release_publisher_remains_tag_and_manual_only(self) -> None:
@@ -293,7 +306,7 @@ class MergeQueuePolicyTests(unittest.TestCase):
                 _context_emitters(context),
                 [f"{workflow_name}:{job_id}"],
             )
-            self.assertIn("merge_group", _triggers(workflow))
+            self.assertNotIn("merge_group", _triggers(workflow))
             self.assertRegex(section, r"(?m)^    needs:")
             self.assertRegex(section, r"(?m)^    if: always\(\)$")
             self.assertIn("needs.", section)

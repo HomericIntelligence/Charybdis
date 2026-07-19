@@ -1,0 +1,42 @@
+name: Merge Queue Smoke
+
+# Sole merge_group workflow. Full CI (up to 16 jobs re-queued per merge group,
+# 70-90 min under runner-slot starvation) already ran on the pull_request; the
+# queue only needs a fast real sanity gate. One job = one runner slot, < 5 min.
+# PR-side CI is untouched: this workflow emits the single `merge-queue-smoke`
+# context that the branch rulesets gate the queue on after rollout.
+
+on:
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mq-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  merge-queue-smoke:
+    name: merge-queue-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+
+      - name: "Verify all uses: references are SHA-pinned"
+        run: ./scripts/check-action-pins.sh
+
+      - name: Validate workflow schemas
+        run: |
+          pip3 install --user check-jsonschema
+          ~/.local/bin/check-jsonschema --builtin-schema vendor.github-workflows .github/workflows/*.yml
+
+      - name: Validate merge queue policy and fan-ins
+        run: python3 scripts/test-merge-queue-policy.py
+
+      - name: Check C++ formatting
+        run: |
+          sudo apt-get install -y clang-format
+          ./scripts/format.sh --check
