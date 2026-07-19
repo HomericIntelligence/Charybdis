@@ -102,7 +102,7 @@ Post-release work that raises quality from functional to production-grade.
 - [ ] #59 Populate `tsan.supp` as CI TSan runs reveal false positives
 - [ ] #62 Document ASAN/TSan local workflow in README or CONTRIBUTING
 - [ ] #76 Gate sanitizer presets on GCC/Clang version check in CMake
-- [ ] #77 Document sanitizer presets in CLAUDE.md or README
+- [ ] #77 Document sanitizer presets in AGENTS.md or README
 
 ---
 
