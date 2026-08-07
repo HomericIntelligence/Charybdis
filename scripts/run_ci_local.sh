@@ -139,6 +139,11 @@ run_security-secrets-scan() {
     run_in_container "gitleaks detect --no-banner --redact --source . 2>&1 | tail -5; exit ${PIPESTATUS[0]}"
 }
 
+run_security-dependency-scan() {
+    # Dependency vulnerability scan (pip-audit)
+    run_in_container "uv run pip-audit"
+}
+
 run_deps-version-sync() {
     # Dependency version sync check
     run_in_container "uv sync --locked"
@@ -161,6 +166,7 @@ case "${SUBSET}" in
     typecheck) run_typecheck ;;
     schema-validation) run_schema-validation ;;
     security-secrets-scan) run_security-secrets-scan ;;
+    security-dependency-scan) run_security-dependency-scan ;;
     deps-version-sync) run_deps-version-sync ;;
     forbid-suppressions) run_forbid-suppressions ;;
 
