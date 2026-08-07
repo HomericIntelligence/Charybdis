@@ -4,8 +4,10 @@ on:
   workflow_run:
     workflows: ["Build and Test", "Static Analysis", "Code Coverage", "CodeQL SAST", "Sanitizers", "Lock Check", "Container Build and Publish", "Integration Tests"]
     types: [completed]
+
   pull_request:
     branches: [main]
+
   push:
     branches: [main]
 
@@ -65,23 +67,26 @@ jobs:
   uv-lock-check:
     name: uv-lock-check
     runs-on: ubuntu-24.04
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow.name == 'Lock Check'
+    timeout-minutes: 30
     steps:
-      - name: Check Lock Check result
-        if: github.event_name == 'workflow_run'
-        env:
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          if [ "${CONCLUSION}" != "success" ]; then
-            echo "Lock Check workflow failed with: ${CONCLUSION}"
-            exit 1
-          fi
-          echo "Lock Check passed"
-      - name: Skip (not triggered by this workflow)
-        if: github.event_name != 'workflow_run'
-        run: echo "Not a workflow_run event — pass (actual work done by Lock Check workflow)"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Cache podman container storage
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.local/share/containers/storage
+          key: podman-charybdis-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            podman-charybdis-${{ runner.os }}-
+
+      - name: Build CI image (podman)
+        run: podman build --ignorefile ci/.dockerignore -f ci/Containerfile -t charybdis-ci:local .
+      # All checks run inside the CI container — the same image developers
+      # use via `just ci-uv-lock-check`.
+      - name: uv-lock-check (in container)
+        run: bash scripts/run_ci_local.sh uv-lock-check
 
   docker-build:
     name: docker-build
@@ -112,204 +117,162 @@ jobs:
 
   forbid-suppressions:
     name: forbid-suppressions
-    runs-on: ubuntu-latest
-    if: github.event_name != 'workflow_run'
-    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 1
 
-      - name: "Reject silent-failure workaround in shell/YAML/Dockerfile/justfile/HCL"
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(git ls-files \
-            -- \
-            '*.sh' '*.bash' '*.yml' '*.yaml' '*.hcl' \
-            'Dockerfile*' '**/Dockerfile*' \
-            'justfile' '**/justfile' 'Justfile' '**/Justfile')
-          declare -a scan_files=()
-          for f in "${files[@]}"; do
-            case "$f" in
-              # Exempt this workflow file (heredoc would otherwise self-match)
-              .github/workflows/_required.yml) continue ;;
-              # Exempt any runbook that documents the rule (if present)
-              docs/runbooks/no-silent-failures.md) continue ;;
-            esac
-            scan_files+=("$f")
-          done
-          if [ "${#scan_files[@]}" -eq 0 ]; then
-            echo "No files to scan"
-            exit 0
-          fi
-          if grep -nE '\|\|[[:space:]]*true([[:space:]]*$|[[:space:]]+#)' "${scan_files[@]}"; then
-            echo ""
-            echo '::error::Found silent-failure workarounds above. Refactor per HomericIntelligence/Odysseus#280.'
-            exit 1
-          fi
-          echo 'OK: no silent-failure workarounds found'
+      - name: Cache podman container storage
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.local/share/containers/storage
+          key: podman-charybdis-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            podman-charybdis-${{ runner.os }}-
 
-      - name: "Reject continue-on-error workflow opt-out"
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(git ls-files -- '.github/workflows/*.yml' '.github/workflows/*.yaml')
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "No workflow files"
-            exit 0
-          fi
-          if grep -nE '^[[:space:]]*continue-on-error:[[:space:]]*true[[:space:]]*$' "${files[@]}"; then
-            echo ""
-            echo '::error::Found "continue-on-error: true" above. Fix the root cause per HomericIntelligence/Odysseus#280.'
-            exit 1
-          fi
-          echo 'OK: no "continue-on-error: true" found'
+      - name: Build CI image (podman)
+        run: podman build --ignorefile ci/.dockerignore -f ci/Containerfile -t charybdis-ci:local .
+      # All checks run inside the CI container — the same image developers
+      # use via `just ci-forbid-suppressions`.
+      - name: forbid-suppressions (in container)
+        run: bash scripts/run_ci_local.sh forbid-suppressions
 
   security-dependency-scan:
     name: security/dependency-scan
     runs-on: ubuntu-24.04
-    if: github.event_name != 'workflow_run'
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          scan-type: fs
-          scan-ref: .
-          exit-code: '1'
-          ignore-unfixed: true
-          severity: CRITICAL,HIGH
-      # Note: Conan's `audit` subcommand requires authentication against
-      # audit.conan.io and is run as a separate, opt-in step locally (see
-      # docs). Trivy (above) already scans `conan.lock` for CVEs against its
-      # offline DB, providing CI-time coverage without external credentials.
+          fetch-depth: 1
+
+      - name: Cache podman container storage
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.local/share/containers/storage
+          key: podman-charybdis-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            podman-charybdis-${{ runner.os }}-
+
+      - name: Build CI image (podman)
+        run: podman build --ignorefile ci/.dockerignore -f ci/Containerfile -t charybdis-ci:local .
+      # All checks run inside the CI container — the same image developers
+      # use via `just ci-security-dependency-scan`.
+      - name: security-dependency-scan (in container)
+        run: bash scripts/run_ci_local.sh security-dependency-scan
 
   security-secrets-scan:
     name: security/secrets-scan
     runs-on: ubuntu-24.04
-    if: github.event_name != 'workflow_run'
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
-      - name: Detect secrets
-        env:
-          GITLEAKS_VERSION: "8.21.2"
-          # SHA-256 of gitleaks_8.21.2_linux_x64.tar.gz from
-          # https://github.com/gitleaks/gitleaks/releases/tag/v8.21.2 — bumped in
-          # lockstep with GITLEAKS_VERSION so a hijacked download is rejected.
-          GITLEAKS_SHA256: "5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba"
+
+      - name: Cache podman container storage
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.local/share/containers/storage
+          key: podman-charybdis-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            podman-charybdis-${{ runner.os }}-
+
+      - name: Build CI image (podman)
+        run: podman build --ignorefile ci/.dockerignore -f ci/Containerfile -t charybdis-ci:local .
+      - name: Run Gitleaks
         run: |
-          set -euo pipefail
-          # Extract gitleaks into a tmpdir outside the source tree so the
-          # tarball's own README.md (which documents a sample sidekiq secret)
-          # does not pollute the scan target.
-          GITLEAKS_DIR="$(mktemp -d)"
-          TARBALL="${GITLEAKS_DIR}/gitleaks.tar.gz"
-          curl -sSfL --retry 3 \
-            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
-            -o "${TARBALL}"
-          echo "${GITLEAKS_SHA256}  ${TARBALL}" | sha256sum --check --status
-          tar xz -C "${GITLEAKS_DIR}" -f "${TARBALL}"
-          # Scan full git history (fetch-depth: 0 above ensures it's available).
-          # `--no-git` would only scan the working tree, missing secrets in
-          # prior commits — see #68 follow-up to #9.
-          "${GITLEAKS_DIR}/gitleaks" detect --source . --redact
+          if [ -f .gitleaks.toml ]; then
+            podman run --rm --userns=keep-id:uid=1000,gid=1000 \
+              -v "$PWD:/workspace:Z" -w /workspace charybdis:local \
+              gitleaks detect --source /workspace --config .gitleaks.toml \
+                --report-format sarif --report-path gitleaks.sarif --redact
+          else
+            podman run --rm --userns=keep-id:uid=1000,gid=1000 \
+              -v "$PWD:/workspace:Z" -w /workspace charybdis:local \
+              gitleaks detect --source /workspace \
+                --report-format sarif --report-path gitleaks.sarif --redact
+          fi
+
+      - name: Upload Gitleaks SARIF
+        if: always() && hashFiles('gitleaks.sarif') != ''
+        uses: github/codeql-action/upload-sarif@b1e036aad851c47cdff5be6a3ec1b0a29c4b0db1  # v3
+        with:
+          sarif_file: gitleaks.sarif
 
   schema-validation:
     name: schema-validation
     runs-on: ubuntu-24.04
-    if: github.event_name != 'workflow_run'
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - name: Install check-jsonschema
-        run: pip3 install --user check-jsonschema
-      - name: Validate workflow schemas
-        run: |
-          ~/.local/bin/check-jsonschema --builtin-schema vendor.github-workflows .github/workflows/*.yml
-      - name: Validate composite action schemas
-        # Composite action YAML files were previously unchecked; malformed
-        # action.yml could fail downstream jobs. See #114.
-        run: |
-          shopt -s nullglob
-          files=(.github/actions/**/action.yml .github/actions/**/action.yaml)
-          if [ ${#files[@]} -gt 0 ]; then
-            ~/.local/bin/check-jsonschema --builtin-schema vendor.github-actions "${files[@]}"
-          else
-            echo "No composite actions to validate."
-          fi
-      - name: Validate merge queue policy and fan-ins
-        run: python3 scripts/test-merge-queue-policy.py
-      - name: Lint CHANGELOG.md (markdownlint)
-        # Explicit CI coverage so CHANGELOG format drift is caught even if
-        # contributors skip pre-commit hooks. Uses the same config as the
-        # pre-commit hook (.markdownlint.yaml). See #161.
-        run: |
-          npm install --no-save --no-fund --no-audit markdownlint-cli@0.41.0
-          npx markdownlint --config .markdownlint.yaml CHANGELOG.md
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Cache podman container storage
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.local/share/containers/storage
+          key: podman-charybdis-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            podman-charybdis-${{ runner.os }}-
+
+      - name: Build CI image (podman)
+        run: podman build --ignorefile ci/.dockerignore -f ci/Containerfile -t charybdis-ci:local .
+      # All checks run inside the CI container — the same image developers
+      # use via `just ci-schema-validation`.
+      - name: schema-validation (in container)
+        run: bash scripts/run_ci_local.sh schema-validation
 
   deps-version-sync:
     name: deps/version-sync
     runs-on: ubuntu-24.04
-    if: github.event_name != 'workflow_run'
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - name: Parse VERSION from CMakeLists.txt
-        run: |
-          VERSION=$(grep -A5 'project(' CMakeLists.txt \
-            | grep -oP '\d+\.\d+\.\d+' | head -1)
-          if [ -z "${VERSION}" ]; then
-            echo "ERROR: Could not parse VERSION from CMakeLists.txt"
-            exit 1
-          fi
-          echo "Detected project version: ${VERSION}"
-          echo "PROJECT_VERSION=${VERSION}" >> "${GITHUB_ENV}"
-      - name: Verify pyproject.toml version matches (if present)
-        # ADR-018: pixi.toml is replaced by pyproject.toml (uv). The toolchain
-        # manifest carries the same canonical version as CMakeLists.txt.
-        run: |
-          if [ -f pyproject.toml ]; then
-            PY_VERSION=$(grep -m1 '^version' pyproject.toml \
-              | grep -oP '\d+\.\d+\.\d+' | head -1)
-            if [ -n "${PY_VERSION}" ] && [ "${PY_VERSION}" != "${PROJECT_VERSION}" ]; then
-              echo "ERROR: pyproject.toml version (${PY_VERSION}) does not match CMakeLists.txt (${PROJECT_VERSION})"
-              exit 1
-            fi
-            echo "pyproject.toml version ${PY_VERSION:-N/A} consistent with CMakeLists.txt ${PROJECT_VERSION}"
-          else
-            echo "No pyproject.toml found, skipping cross-check"
-          fi
-      - name: Verify conanfile.py version matches (if present)
-        run: |
-          if [ -f conanfile.py ]; then
-            CONAN_VERSION=$(grep -m1 '^\s*version\s*=' conanfile.py \
-              | grep -oP '\d+\.\d+\.\d+' | head -1)
-            if [ -n "${CONAN_VERSION}" ] && [ "${CONAN_VERSION}" != "${PROJECT_VERSION}" ]; then
-              echo "ERROR: conanfile.py version (${CONAN_VERSION}) does not match CMakeLists.txt (${PROJECT_VERSION})"
-              exit 1
-            fi
-            echo "conanfile.py version ${CONAN_VERSION:-N/A} consistent with CMakeLists.txt ${PROJECT_VERSION}"
-          else
-            echo "No conanfile.py found, skipping cross-check"
-          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Cache podman container storage
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.local/share/containers/storage
+          key: podman-charybdis-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            podman-charybdis-${{ runner.os }}-
+
+      - name: Build CI image (podman)
+        run: podman build --ignorefile ci/.dockerignore -f ci/Containerfile -t charybdis-ci:local .
+      # All checks run inside the CI container — the same image developers
+      # use via `just ci-deps-version-sync`.
+      - name: deps-version-sync (in container)
+        run: bash scripts/run_ci_local.sh deps-version-sync
 
   typecheck:
     name: typecheck
     runs-on: ubuntu-24.04
-    if: github.event_name != 'workflow_run'
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build clang clang-tidy python3-pip
-          pip3 install --user conan
-      - name: Install Conan dependencies
-        uses: ./.github/actions/conan-install
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          build_type: debug
-          compiler: clang
-      - name: Configure with clang-tidy enabled
-        run: CC=clang CXX=clang++ cmake --preset debug -DCharybdis_ENABLE_CLANG_TIDY=ON
-      - name: Build (clang-tidy runs as part of build)
-        run: cmake --build --preset debug
+          fetch-depth: 1
+
+      - name: Cache podman container storage
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.local/share/containers/storage
+          key: podman-charybdis-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            podman-charybdis-${{ runner.os }}-
+
+      - name: Build CI image (podman)
+        run: podman build --ignorefile ci/.dockerignore -f ci/Containerfile -t charybdis-ci:local .
+      # All checks run inside the CI container — the same image developers
+      # use via `just ci-typecheck`.
+      - name: typecheck (in container)
+        run: bash scripts/run_ci_local.sh typecheck
 
   lockfile-integrity:
     name: lockfile-integrity
@@ -343,6 +306,7 @@ jobs:
   # release artifact, runs `cmake --install` into a staging prefix, and smoke-
   # tests that the installed CLI executes. Exercises the install() rules in
   # CMakeLists.txt so packaging regressions are caught on every push/PR.
+
   install:
     name: install
     runs-on: ubuntu-24.04
@@ -398,6 +362,7 @@ jobs:
   # main). This DRY-RUN validates the release prerequisites on every push/PR —
   # version parses from CMakeLists.txt and the changelog generator runs — but
   # publishes NOTHING. See release.yml for the actual tag-driven release.
+
   release:
     name: release
     runs-on: ubuntu-24.04
