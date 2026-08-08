@@ -36,3 +36,7 @@ dev = [
 # Install the dev group by default so `uv sync` (no flags) provisions the full
 # build toolchain, matching the former single-environment pixi behavior.
 default-groups = ["dev"]
+
+[tool.mypy.overrides]
+module = ["conanfile"]
+ignore_errors = true

@@ -182,7 +182,9 @@ class MergeQueuePolicyTests(unittest.TestCase):
         self.assertEqual(policy["merge_queue_rule"], EXPECTED_QUEUE_RULE)
 
     def test_every_required_context_carrier_runs_on_push_and_pull_request(self) -> None:
-        policy_contexts = set(_policy()["required_contexts"])
+        required = _policy()["required_contexts"]
+        assert isinstance(required, list)
+        policy_contexts = set(required)
         carriers: set[str] = set()
         emitted: list[str] = []
 
