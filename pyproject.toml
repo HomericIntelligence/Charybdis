@@ -37,6 +37,3 @@ dev = [
 # build toolchain, matching the former single-environment pixi behavior.
 default-groups = ["dev"]
 
-[tool.mypy.overrides]
-module = ["conanfile"]
-ignore_errors = true
