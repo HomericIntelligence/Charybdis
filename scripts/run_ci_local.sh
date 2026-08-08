@@ -126,7 +126,7 @@ run_uv-lock-check() {
 
 run_typecheck() {
     # Type check
-    run_in_container "uv run mypy src"
+    run_in_container "uv run mypy conanfile.py scripts"
 }
 
 run_schema-validation() {
