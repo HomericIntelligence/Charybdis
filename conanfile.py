@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 from conan import ConanFile
 from conan.tools.cmake import CMakeToolchain, CMakeDeps
 

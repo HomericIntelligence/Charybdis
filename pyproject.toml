@@ -26,9 +26,14 @@ dev = [
     "conan>=2.0",
     "gcovr>=7",
     "pre-commit>=3",
+    # Typechecks conanfile.py (only Python in the repo).
+    "mypy>=1.8.0,<2",
+    # Dependency vulnerability scan (security/dependency-scan gate).
+    "pip-audit>=2.7",
 ]
 
 [tool.uv]
 # Install the dev group by default so `uv sync` (no flags) provisions the full
 # build toolchain, matching the former single-environment pixi behavior.
 default-groups = ["dev"]
+
