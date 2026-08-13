@@ -1,19 +1,51 @@
+# Dependabot configuration — HomericIntelligence fleet baseline
+# Cadence: monthly. Grouping: minor+patch updates in one PR, major-version
+# bumps in their own PR for focused review. See the Dependabot options
+# reference for details.
+
 version: 2
 updates:
-  - package-ecosystem: github-actions
-    directory: /
+  - package-ecosystem: 'uv'
+    directory: '/'
     schedule:
-      interval: weekly
-    # Require a maintainer to review before any SHA-pinned action update merges.
-    # This prevents auto-merge of dependabot PRs that modify .github/ without
-    # human inspection, as required by branch protection rules.
-    reviewers:
-      - HomericIntelligence/maintainers
-    # Group setup-uv updates so the action SHA bump is reviewed as a unit.
-    # ADR-018: uv replaces pixi; the build toolchain is uv-managed and the
-    # workflows use astral-sh/setup-uv (formerly prefix-dev/setup-pixi).
-    # See HomericIntelligence/Charybdis#122.
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: 'chore(deps)'
     groups:
-      setup-uv:
+      minor-patch:
         patterns:
-          - "astral-sh/setup-uv"
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: 'chore(ci)'
+    groups:
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
