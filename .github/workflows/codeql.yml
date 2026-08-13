@@ -40,7 +40,7 @@ jobs:
         run: conan install . --output-folder=build/ci --build=missing --lockfile=conan.lock -s build_type=Release
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@26dfab68fffc1cbc36c56970c32f0e53cf1fcc01  # v4.37.2
+        uses: github/codeql-action/init@e0647621c2984b5ed2f768cb892365bf2a616ad1  # v4.37.2
         with:
           languages: cpp
           queries: security-extended,security-and-quality
