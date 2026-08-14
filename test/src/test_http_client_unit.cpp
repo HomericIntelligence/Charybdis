@@ -245,7 +245,8 @@ TEST_F(HttpTestClientOnline, PostRejectsOversizedBody) {
 }
 
 TEST_F(HttpTestClientOnline, PostRawRejectsOversizedBody) {
-  [[maybe_unused]] auto [status, body] = client_->post_raw("/v1/oversized-echo", R"({"x":1})", "application/json");
+  [[maybe_unused]] auto [status, body] =
+      client_->post_raw("/v1/oversized-echo", R"({"x":1})", "application/json");
   EXPECT_EQ(body.value("error", ""), "response_too_large");
 }
 

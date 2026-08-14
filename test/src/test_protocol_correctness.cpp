@@ -76,14 +76,15 @@ TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
   [[maybe_unused]] auto [s1, team] = client_->post("/v1/teams", {{"name", "state-team"}});
   const std::string team_id = team.value("team", nlohmann::json{}).value("id", "");
 
-  [[maybe_unused]] auto [s2, agent] = client_->post("/v1/agents", {{"name", "state-agent"},
-                                                  {"label", "State"},
-                                                  {"program", "none"},
-                                                  {"workingDirectory", "/tmp"},
-                                                  {"taskDescription", "state"},
-                                                  {"tags", nlohmann::json::array()},
-                                                  {"owner", "e2e"},
-                                                  {"role", "member"}});
+  [[maybe_unused]] auto [s2, agent] =
+      client_->post("/v1/agents", {{"name", "state-agent"},
+                                   {"label", "State"},
+                                   {"program", "none"},
+                                   {"workingDirectory", "/tmp"},
+                                   {"taskDescription", "state"},
+                                   {"tags", nlohmann::json::array()},
+                                   {"owner", "e2e"},
+                                   {"role", "member"}});
   const std::string agent_id = extract_agent_id(agent);
 
   [[maybe_unused]] auto [s3, task_resp] =
