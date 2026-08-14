@@ -235,22 +235,22 @@ TEST_F(HttpTestClientOnline, DelParsesJsonResponse) {
 }
 
 TEST_F(HttpTestClientOnline, GetRejectsOversizedBody) {
-  auto [status, body] = client_->get("/v1/oversized");
+  [[maybe_unused]] auto [status, body] = client_->get("/v1/oversized");
   EXPECT_EQ(body.value("error", ""), "response_too_large");
 }
 
 TEST_F(HttpTestClientOnline, PostRejectsOversizedBody) {
-  auto [status, body] = client_->post("/v1/oversized-echo", {{"x", 1}});
+  [[maybe_unused]] auto [status, body] = client_->post("/v1/oversized-echo", {{"x", 1}});
   EXPECT_EQ(body.value("error", ""), "response_too_large");
 }
 
 TEST_F(HttpTestClientOnline, PostRawRejectsOversizedBody) {
-  auto [status, body] = client_->post_raw("/v1/oversized-echo", R"({"x":1})", "application/json");
+  [[maybe_unused]] auto [status, body] = client_->post_raw("/v1/oversized-echo", R"({"x":1})", "application/json");
   EXPECT_EQ(body.value("error", ""), "response_too_large");
 }
 
 TEST_F(HttpTestClientOnline, DelRejectsOversizedBody) {
-  auto [status, body] = client_->del("/v1/oversized");
+  [[maybe_unused]] auto [status, body] = client_->del("/v1/oversized");
   EXPECT_EQ(body.value("error", ""), "response_too_large");
 }
 

@@ -222,7 +222,7 @@ TEST_F(ChaosResilienceTest, R04QueueStarveConsumerStalls) {
   // Assert effect: task stays pending during the starve window (poll for 3s)
   const bool advanced_while_starved = wait_until(
       [&]() {
-        auto [ts2, tasks] = client_->get("/v1/tasks");
+        [[maybe_unused]] auto [ts2, tasks] = client_->get("/v1/tasks");
         for (const auto& task : tasks.value("tasks", nlohmann::json::array())) {
           if (task.value("id", "") == task_id) {
             return task.value("status", "pending") != "pending";
@@ -239,7 +239,7 @@ TEST_F(ChaosResilienceTest, R04QueueStarveConsumerStalls) {
   // Assert recovery: task now advances to completed within 10s
   const bool completed = wait_until(
       [&]() {
-        auto [ts3, tasks] = client_->get("/v1/tasks");
+        [[maybe_unused]] auto [ts3, tasks] = client_->get("/v1/tasks");
         for (const auto& task : tasks.value("tasks", nlohmann::json::array())) {
           if (task.value("id", "") == task_id) {
             return task.value("status", "") == "completed";
