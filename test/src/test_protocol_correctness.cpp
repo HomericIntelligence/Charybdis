@@ -73,20 +73,21 @@ TEST_F(ProtocolCorrectnessTest, C10IdempotentStreamCreation) {
 // Verify task state is only pending or completed (no intermediate states)
 TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
   // Create and immediately check state
-  auto [s1, team] = client_->post("/v1/teams", {{"name", "state-team"}});
+  [[maybe_unused]] auto [s1, team] = client_->post("/v1/teams", {{"name", "state-team"}});
   const std::string team_id = team.value("team", nlohmann::json{}).value("id", "");
 
-  auto [s2, agent] = client_->post("/v1/agents", {{"name", "state-agent"},
-                                                  {"label", "State"},
-                                                  {"program", "none"},
-                                                  {"workingDirectory", "/tmp"},
-                                                  {"taskDescription", "state"},
-                                                  {"tags", nlohmann::json::array()},
-                                                  {"owner", "e2e"},
-                                                  {"role", "member"}});
+  [[maybe_unused]] auto [s2, agent] =
+      client_->post("/v1/agents", {{"name", "state-agent"},
+                                   {"label", "State"},
+                                   {"program", "none"},
+                                   {"workingDirectory", "/tmp"},
+                                   {"taskDescription", "state"},
+                                   {"tags", nlohmann::json::array()},
+                                   {"owner", "e2e"},
+                                   {"role", "member"}});
   const std::string agent_id = extract_agent_id(agent);
 
-  auto [s3, task_resp] =
+  [[maybe_unused]] auto [s3, task_resp] =
       client_->post("/v1/teams/" + team_id + "/tasks", {{"subject", "State test"},
                                                         {"description", "state"},
                                                         {"type", "hello"},
@@ -97,7 +98,7 @@ TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
   std::set<std::string> observed_states;
   std::ignore = wait_until(
       [&]() {
-        auto [ts, tasks] = client_->get("/v1/tasks");
+        [[maybe_unused]] auto [ts, tasks] = client_->get("/v1/tasks");
         for (const auto& task : tasks.value("tasks", nlohmann::json::array())) {
           if (task.value("id", "") == task_id) {
             observed_states.insert(task.value("status", "unknown"));

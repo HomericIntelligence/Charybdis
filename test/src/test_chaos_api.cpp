@@ -111,7 +111,7 @@ TEST_F(ChaosApiTest, E04RemoveFault) {
   EXPECT_GE(del_status, 200);
   EXPECT_LT(del_status, 300);
 
-  auto [list_status, list_body] = client_->get("/v1/chaos");
+  [[maybe_unused]] auto [list_status, list_body] = client_->get("/v1/chaos");
   const auto faults = list_body.value("faults", nlohmann::json::array());
   for (const auto& fault : faults) {
     EXPECT_NE(fault.value("id", ""), fault_id) << "Fault should have been removed";
