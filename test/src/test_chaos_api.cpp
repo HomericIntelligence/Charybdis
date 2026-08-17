@@ -48,6 +48,7 @@ class ChaosApiTest : public ::testing::Test {
   // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
   bool fault_in_list(const std::string& fault_id) {
     auto [list_status, list_body] = client_->get("/v1/chaos");
+    (void)list_status;
     if (list_status != 200) {
       return false;
     }
@@ -112,6 +113,7 @@ TEST_F(ChaosApiTest, E04RemoveFault) {
   EXPECT_LT(del_status, 300);
 
   [[maybe_unused]] auto [list_status, list_body] = client_->get("/v1/chaos");
+  (void)list_status;
   const auto faults = list_body.value("faults", nlohmann::json::array());
   for (const auto& fault : faults) {
     EXPECT_NE(fault.value("id", ""), fault_id) << "Fault should have been removed";

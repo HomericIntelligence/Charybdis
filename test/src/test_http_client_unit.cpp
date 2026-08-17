@@ -67,6 +67,7 @@ class HttpTestClientOffline : public ::testing::Test {
 
 TEST_F(HttpTestClientOffline, GetReturnsZeroStatus) {
   auto [status, body] = client_.get("/any/path");
+  (void)status;
   EXPECT_EQ(status, 0);
   EXPECT_TRUE(body.empty());
 }
@@ -74,24 +75,28 @@ TEST_F(HttpTestClientOffline, GetReturnsZeroStatus) {
 TEST_F(HttpTestClientOffline, PostReturnsZeroStatus) {
   const nlohmann::json payload = {{"key", "value"}};
   auto [status, body] = client_.post("/any/path", payload);
+  (void)status;
   EXPECT_EQ(status, 0);
   EXPECT_TRUE(body.empty());
 }
 
 TEST_F(HttpTestClientOffline, PostEmptyBodyReturnsZeroStatus) {
   auto [status, body] = client_.post("/any/path");
+  (void)status;
   EXPECT_EQ(status, 0);
   EXPECT_TRUE(body.empty());
 }
 
 TEST_F(HttpTestClientOffline, DelReturnsZeroStatus) {
   auto [status, body] = client_.del("/any/path");
+  (void)status;
   EXPECT_EQ(status, 0);
   EXPECT_TRUE(body.empty());
 }
 
 TEST_F(HttpTestClientOffline, PostRawReturnsZeroStatus) {
   auto [status, body] = client_.post_raw("/any/path", "raw body", "text/plain");
+  (void)status;
   EXPECT_EQ(status, 0);
   EXPECT_TRUE(body.empty());
 }
@@ -206,6 +211,7 @@ TEST_F(HttpTestClientOnline, IsHealthyReturnsTrueWhenServerOk) {
 
 TEST_F(HttpTestClientOnline, GetParsesJsonBody) {
   auto [status, body] = client_->get("/v1/json");
+  (void)status;
   EXPECT_EQ(status, 200);
   EXPECT_EQ(body.value("key", ""), "value");
 }
@@ -213,6 +219,7 @@ TEST_F(HttpTestClientOnline, GetParsesJsonBody) {
 TEST_F(HttpTestClientOnline, GetHandlesNonJsonBody) {
   // The catch block wraps non-JSON body in {"raw": ...}
   auto [status, body] = client_->get("/v1/text");
+  (void)status;
   EXPECT_EQ(status, 200);
   EXPECT_TRUE(body.contains("raw"));
 }
@@ -220,44 +227,52 @@ TEST_F(HttpTestClientOnline, GetHandlesNonJsonBody) {
 TEST_F(HttpTestClientOnline, PostSendsJsonBody) {
   const nlohmann::json payload = {{"ping", "pong"}};
   auto [status, body] = client_->post("/v1/echo", payload);
+  (void)status;
   EXPECT_EQ(status, 200);
 }
 
 TEST_F(HttpTestClientOnline, PostRawSendsStringBody) {
   auto [status, body] = client_->post_raw("/v1/echo", R"({"raw":true})", "application/json");
+  (void)status;
   EXPECT_EQ(status, 200);
 }
 
 TEST_F(HttpTestClientOnline, DelParsesJsonResponse) {
   auto [status, body] = client_->del("/v1/item");
+  (void)status;
   EXPECT_EQ(status, 200);
   EXPECT_TRUE(body.value("deleted", false));
 }
 
 TEST_F(HttpTestClientOnline, GetRejectsOversizedBody) {
   [[maybe_unused]] auto [status, body] = client_->get("/v1/oversized");
+  (void)status;
   EXPECT_EQ(body.value("error", ""), "response_too_large");
 }
 
 TEST_F(HttpTestClientOnline, PostRejectsOversizedBody) {
   [[maybe_unused]] auto [status, body] = client_->post("/v1/oversized-echo", {{"x", 1}});
+  (void)status;
   EXPECT_EQ(body.value("error", ""), "response_too_large");
 }
 
 TEST_F(HttpTestClientOnline, PostRawRejectsOversizedBody) {
   [[maybe_unused]] auto [status, body] =
       client_->post_raw("/v1/oversized-echo", R"({"x":1})", "application/json");
+  (void)status;
   EXPECT_EQ(body.value("error", ""), "response_too_large");
 }
 
 TEST_F(HttpTestClientOnline, DelRejectsOversizedBody) {
   [[maybe_unused]] auto [status, body] = client_->del("/v1/oversized");
+  (void)status;
   EXPECT_EQ(body.value("error", ""), "response_too_large");
 }
 
 TEST_F(HttpTestClientOnline, BoundaryBodyNotRejected) {
   // Exactly kMaxBodyBytes — must not trigger the size guard
   auto [status, body] = client_->get("/v1/boundary");
+  (void)status;
   EXPECT_EQ(status, 200);
   EXPECT_FALSE(body.value("error", "").find("response_too_large") != std::string::npos);
 }
