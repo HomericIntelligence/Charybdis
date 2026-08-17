@@ -223,6 +223,7 @@ TEST_F(ChaosResilienceTest, R04QueueStarveConsumerStalls) {
   const bool advanced_while_starved = wait_until(
       [&]() {
         [[maybe_unused]] auto [ts2, tasks] = client_->get("/v1/tasks");
+        (void)ts2;
         for (const auto& task : tasks.value("tasks", nlohmann::json::array())) {
           if (task.value("id", "") == task_id) {
             return task.value("status", "pending") != "pending";
@@ -240,6 +241,7 @@ TEST_F(ChaosResilienceTest, R04QueueStarveConsumerStalls) {
   const bool completed = wait_until(
       [&]() {
         [[maybe_unused]] auto [ts3, tasks] = client_->get("/v1/tasks");
+        (void)ts3;
         for (const auto& task : tasks.value("tasks", nlohmann::json::array())) {
           if (task.value("id", "") == task_id) {
             return task.value("status", "") == "completed";

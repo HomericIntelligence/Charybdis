@@ -43,6 +43,7 @@ TEST_F(ProtocolCorrectnessTest, C10IdempotentStreamCreation) {
 
   // Create a task — this exercises the NATS publish path which requires streams
   auto [s1, team] = client_->post("/v1/teams", {{"name", "c10-team"}});
+  (void)s1;
   ASSERT_GE(s1, 200);
   ASSERT_LT(s1, 300);
   const std::string team_id = team.value("team", nlohmann::json{}).value("id", "");
@@ -57,6 +58,7 @@ TEST_F(ProtocolCorrectnessTest, C10IdempotentStreamCreation) {
                                                   {"tags", nlohmann::json::array({"c10"})},
                                                   {"owner", "e2e"},
                                                   {"role", "member"}});
+  (void)s2;
   ASSERT_GE(s2, 200);
   const std::string agent_id = extract_agent_id(agent);
 
@@ -66,6 +68,7 @@ TEST_F(ProtocolCorrectnessTest, C10IdempotentStreamCreation) {
                                                         {"description", "protocol test"},
                                                         {"type", "hello"},
                                                         {"assigneeAgentId", agent_id}});
+  (void)s3;
   EXPECT_GE(s3, 200);
   EXPECT_LT(s3, 300) << "Task creation should succeed (streams exist)";
 }
@@ -74,6 +77,7 @@ TEST_F(ProtocolCorrectnessTest, C10IdempotentStreamCreation) {
 TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
   // Create and immediately check state
   [[maybe_unused]] auto [s1, team] = client_->post("/v1/teams", {{"name", "state-team"}});
+  (void)s1;
   const std::string team_id = team.value("team", nlohmann::json{}).value("id", "");
 
   [[maybe_unused]] auto [s2, agent] =
@@ -85,6 +89,7 @@ TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
                                    {"tags", nlohmann::json::array()},
                                    {"owner", "e2e"},
                                    {"role", "member"}});
+  (void)s2;
   const std::string agent_id = extract_agent_id(agent);
 
   [[maybe_unused]] auto [s3, task_resp] =
@@ -92,6 +97,7 @@ TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
                                                         {"description", "state"},
                                                         {"type", "hello"},
                                                         {"assigneeAgentId", agent_id}});
+  (void)s3;
   const std::string task_id = task_resp.value("task", nlohmann::json{}).value("id", "");
 
   // Poll and collect states
@@ -99,6 +105,7 @@ TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
   std::ignore = wait_until(
       [&]() {
         [[maybe_unused]] auto [ts, tasks] = client_->get("/v1/tasks");
+        (void)ts;
         for (const auto& task : tasks.value("tasks", nlohmann::json::array())) {
           if (task.value("id", "") == task_id) {
             observed_states.insert(task.value("status", "unknown"));
