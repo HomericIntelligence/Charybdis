@@ -102,7 +102,7 @@ When you report a vulnerability:
 
 ### Out of Scope
 
-- ProjectAgamemnon `/v1/chaos/*` API (report to [ProjectAgamemnon](https://github.com/HomericIntelligence/ProjectAgamemnon))
+- Agamemnon `/v1/chaos/*` API (report to [Agamemnon](https://github.com/HomericIntelligence/Agamemnon))
 - Other HomericIntelligence submodule repos (report to that repo directly)
 - Third-party dependencies (report upstream)
 - Social engineering attacks

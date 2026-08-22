@@ -206,7 +206,7 @@ without a separate code path on the Charybdis side.
 
 > **Status:** Nestor↔Agamemnon coordination protocol details (task payload
 > schema, result codes) are tracked in
-> [ProjectNestor](https://github.com/HomericIntelligence/ProjectNestor). This
+> [Nestor](https://github.com/HomericIntelligence/Nestor). This
 > section will be expanded once those are finalised.
 
 ## Environment Variables
