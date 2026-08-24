@@ -70,10 +70,33 @@ USER ${USER_NAME}
 # from the uv venv above.
 COPY conanfile.py ./
 COPY conan/ conan/
-RUN conan install . \
-    --output-folder=build \
-    --profile:all=conan/profiles/default \
-    --build=missing
+
+# The optional `conan_cache` secret carries a pre-seeded ~/.conan2 package
+# store (packed by .github/workflows/container.yml from the GitHub Actions
+# cache). It is extracted INTO this image layer — never onto a BuildKit
+# `--mount=type=cache` — so the Conan store shares one lifetime with the
+# CMakeDeps-generated build/*.cmake files below; a cache mount is ephemeral
+# per build and leaves the generated absolute package paths dangling once it
+# disappears.
+#
+# Secret mounts default to uid=0/mode=0400, but this RUN executes as the
+# non-root builder user, so the mount sets uid/gid explicitly and mode 0444.
+# The literal 10001 values must track the USER_ID / GROUP_ID ARG defaults
+# above: ARG expansion inside RUN mount flags is only supported by newer
+# BuildKit frontends (`# syntax=` directives), so they are written out to
+# stay portable across docker/podman builtin frontends.
+RUN --mount=type=secret,id=conan_cache,required=false,uid=10001,gid=10001,mode=0444,target=/tmp/conan-cache.tgz \
+    set -eux; \
+    if [ -r /tmp/conan-cache.tgz ]; then \
+        echo "[charybdis] Conan cache: HYDRATED from secret"; \
+        tar -xzf /tmp/conan-cache.tgz -C "${HOME}"; \
+    else \
+        echo "[charybdis] Conan cache: NOT present - cold install"; \
+    fi; \
+    conan install . \
+        --output-folder=build \
+        --profile:all=conan/profiles/default \
+        --build=missing
 
 # Copy CMake configuration.
 COPY CMakeLists.txt CMakePresets.json ./
