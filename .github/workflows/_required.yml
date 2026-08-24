@@ -142,6 +142,10 @@ jobs:
       - name: forbid-suppressions (in container)
         run: bash scripts/run_ci_local.sh forbid-suppressions
 
+  # No Conan audit step exists here by design: it was removed in #221
+  # (the audit command requires a subcommand plus audit.conan.io credentials
+  # that are unavailable in CI; Trivy covers conan.lock CVEs and pip-audit
+  # covers Python deps). Do not resurrect it.
   security-dependency-scan:
     name: security/dependency-scan
     runs-on: ubuntu-24.04
@@ -321,10 +325,8 @@ jobs:
     if: github.event_name != 'workflow_run'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - name: Install Conan
-        run: pip3 install --user conan
-      - name: Configure Conan profile
-        run: conan profile detect --force
+      - name: Set up Conan
+        uses: ./.github/actions/conan-setup
       - name: Regenerate lockfile
         run: |
           conan lock create . \
