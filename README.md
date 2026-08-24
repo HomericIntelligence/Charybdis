@@ -134,7 +134,7 @@ Charybdis communicates exclusively with Agamemnon's chaos API:
 | Endpoint                           | Effect                                              |
 |------------------------------------|-----------------------------------------------------|
 | `POST /v1/chaos/network-partition` | Partition Tailscale nodes; verify NATS reconnects   |
-| `POST /v1/chaos/latency`           | Inject latency on a node; verify backpressure       |
+| `POST /v1/chaos/latency`           | Inject latency on a node; verify backpressure. R02 probes `CHAOS_LATENCY_PROBE_POST_PATH` (default `POST /v1/teams`); skip with `ctest --label-exclude REQUIRES_LATENCY_PROBE`.       |
 | `POST /v1/chaos/kill`              | Kill a named service; verify restart/recovery       |
 | `POST /v1/chaos/queue-starve`      | Stall pull consumers on a subject; verify no loss   |
 | `DELETE /v1/chaos/*`               | Remove any injected fault                           |
