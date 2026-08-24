@@ -9,6 +9,7 @@
 
 namespace httplib {
 class Client;
+struct Response;
 }  // namespace httplib
 
 namespace charybdis {
@@ -176,6 +177,14 @@ class HttpTestClient {
   /// private static so it can refer to the private `CircuitBreaker` type.
   template <typename Fn>
   static Response run_with_retry(const RetryPolicy& policy, CircuitBreaker& breaker, Fn func);
+
+  /// Internal: single home for response-body handling (issue #142) — size guard
+  /// against `kMaxBodyBytes`, then JSON parse, wrapping non-JSON bodies as
+  /// `{"raw": <body>}`. Takes `httplib::Response` (not `httplib::Result`):
+  /// null results are the retry loop's transient-failure signal and never
+  /// reach parsing. Future changes (raising the cap, adding metrics) go here.
+  /// Spelled `httplib::Response` because this class nests its own `Response`.
+  static nlohmann::json parse_response(const httplib::Response& res);
 };
 
 }  // namespace charybdis

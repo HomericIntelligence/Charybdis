@@ -176,6 +176,14 @@ class MockServer {
       res.set_content("not-json", "text/plain");
     });
 
+    svr_.Delete("/v1/text", [](const httplib::Request& /*req*/, httplib::Response& res) {
+      res.set_content("not-json", "text/plain");
+    });
+
+    svr_.Post("/v1/text", [](const httplib::Request& /*req*/, httplib::Response& res) {
+      res.set_content("not-json", "text/plain");
+    });
+
     svr_.Post("/v1/echo", [](const httplib::Request& req, httplib::Response& res) {
       res.set_content(req.body, "application/json");
     });
@@ -280,6 +288,20 @@ TEST_F(HttpTestClientOnline, GetParsesJsonBody) {
 TEST_F(HttpTestClientOnline, GetHandlesNonJsonBody) {
   // The catch block wraps non-JSON body in {"raw": ...}
   auto [status, body] = client_->get("/v1/text");
+  (void)status;
+  EXPECT_EQ(status, 200);
+  EXPECT_TRUE(body.contains("raw"));
+}
+
+TEST_F(HttpTestClientOnline, DelHandlesNonJsonBody) {
+  auto [status, body] = client_->del("/v1/text");
+  (void)status;
+  EXPECT_EQ(status, 200);
+  EXPECT_TRUE(body.contains("raw"));
+}
+
+TEST_F(HttpTestClientOnline, PostRawHandlesNonJsonBody) {
+  auto [status, body] = client_->post_raw("/v1/text", "payload", "text/plain");
   (void)status;
   EXPECT_EQ(status, 200);
   EXPECT_TRUE(body.contains("raw"));

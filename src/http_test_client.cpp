@@ -17,17 +17,6 @@ namespace charybdis {
 
 namespace {
 
-nlohmann::json parse_body(const httplib::Response& res) {
-  if (res.body.size() > HttpTestClient::kMaxBodyBytes) {
-    return {{"error", "response_too_large"}};
-  }
-  try {
-    return nlohmann::json::parse(res.body);
-  } catch (...) {
-    return {{"raw", res.body}};
-  }
-}
-
 /// Thread-local jitter source. Avoids per-call construction of a Mersenne
 /// twister and avoids a global mutex on the RNG.
 double jitter_factor() {
@@ -162,6 +151,17 @@ HttpTestClient::HttpTestClient(const std::string& base_url, RetryPolicy retry,
 
 HttpTestClient::~HttpTestClient() = default;
 
+nlohmann::json HttpTestClient::parse_response(const httplib::Response& res) {
+  if (res.body.size() > kMaxBodyBytes) {
+    return {{"error", "response_too_large"}};
+  }
+  try {
+    return nlohmann::json::parse(res.body);
+  } catch (...) {
+    return {{"raw", res.body}};
+  }
+}
+
 /// Apply the retry-with-backoff envelope around an httplib call.
 /// `func` must be invocable and return an `httplib::Result`. A `nullptr`-like
 /// result (status 0) is the transient signal that triggers retry. Any
@@ -181,7 +181,7 @@ HttpTestClient::Response HttpTestClient::run_with_retry(const RetryPolicy& polic
     auto res = func();
     if (res) {
       breaker.record_success();
-      return {res->status, parse_body(*res)};
+      return {res->status, parse_response(*res)};
     }
 
     breaker.record_failure();
