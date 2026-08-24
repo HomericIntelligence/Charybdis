@@ -19,9 +19,18 @@ jobs:
       - name: Check formatting
         run: ./scripts/format.sh --check
 
+  lockfile-integrity:
+    name: lockfile-integrity
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Verify lockfile integrity
+        uses: ./.github/actions/conan-lock-check
+
   clang-tidy:
     name: clang-tidy
     runs-on: ubuntu-24.04
+    needs: [lockfile-integrity]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Setup uv

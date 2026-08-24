@@ -1,0 +1,34 @@
+name: Conan Lock Check
+description: Regenerate conan.lock with the canonical profile and fail if it is stale
+
+runs:
+  using: composite
+  steps:
+    - name: Install Conan
+      shell: bash
+      run: pip3 install --user conan
+
+    - name: Configure Conan profile
+      shell: bash
+      run: conan profile detect --force
+
+    - name: Regenerate lockfile
+      shell: bash
+      run: |
+        conan lock create . \
+          -s compiler=gcc \
+          -s compiler.version=14 \
+          -s compiler.libcxx=libstdc++11 \
+          -s compiler.cppstd=20 \
+          -s build_type=Debug \
+          -s os=Linux \
+          -s arch=x86_64
+
+    - name: Verify lockfile is up-to-date
+      shell: bash
+      run: |
+        if ! git diff --exit-code conan.lock; then
+          echo "ERROR: conan.lock is out of date. Run scripts/lock.sh locally and commit the result."
+          exit 1
+        fi
+        echo "conan.lock is up-to-date"
