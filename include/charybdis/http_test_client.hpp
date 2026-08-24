@@ -13,6 +13,18 @@ class Client;
 
 namespace charybdis {
 
+/// Per-call socket timeouts for the underlying httplib::Client.
+/// Defaults reproduce pre-#81 behaviour (5s connect, 10s read). Override
+/// `read_timeout_sec` to a larger value in fixtures that drive
+/// `POST /v1/chaos/latency`, where the injected delay would otherwise be
+/// indistinguishable from a real read-timeout failure. A value of 0 means
+/// "no timeout" (cpp-httplib semantics). Negative values are rejected by
+/// the HttpTestClient constructor.
+struct TimeoutConfig {
+  int connection_timeout_sec = 5;
+  int read_timeout_sec = 10;
+};
+
 /// Retry policy for transient connection failures (status == 0).
 /// Default is `max_retries = 0` — retries are opt-in to preserve the existing
 /// fail-fast behaviour for tests that intentionally probe an offline service.
@@ -81,9 +93,10 @@ class HttpTestClient {
   // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result)
   static constexpr std::size_t kMaxBodyBytes = 10 * 1024 * 1024;  // 10 MB
 
-  /// Construct a client targeting `base_url` with optional retry and
-  /// circuit-breaker policies. The defaults preserve pre-#39 behaviour
-  /// (no retries, no breaker), so existing callers require no source changes.
+  /// Construct a client targeting `base_url` with optional retry,
+  /// circuit-breaker and timeout policies. The defaults preserve
+  /// pre-#39/#81 behaviour (no retries, no breaker, 5s connect / 10s read
+  /// timeouts), so existing callers require no source changes.
   ///
   /// URL handling: a `base_url` that does not match `https?://host:port`
   /// silently falls back to `localhost:8080`. A URL that *does* match but
@@ -96,12 +109,15 @@ class HttpTestClient {
   ///   `"http://localhost:8080"`).
   /// @param retry Retry policy for transient failures (default: disabled).
   /// @param breaker_cfg Circuit-breaker configuration (default: disabled).
+  /// @param timeouts Socket timeouts (default: 5s connect / 10s read).
   /// @throws std::runtime_error if `base_url` matches `https?://host:port` but
-  ///   the port is non-numeric, overflows `int`, or lies outside `[1, 65535]`.
-  ///   No other exceptions escape construction under normal operation;
-  ///   `std::bad_alloc` may propagate from allocation as usual.
+  ///   the port is non-numeric, overflows `int`, or lies outside `[1, 65535]`,
+  ///   or if any timeout value is negative. No other exceptions escape
+  ///   construction under normal operation; `std::bad_alloc` may propagate from
+  ///   allocation as usual.
   explicit HttpTestClient(const std::string& base_url = "http://localhost:8080",
-                          RetryPolicy retry = {}, CircuitBreakerConfig breaker_cfg = {});
+                          RetryPolicy retry = {}, CircuitBreakerConfig breaker_cfg = {},
+                          TimeoutConfig timeouts = {});
   ~HttpTestClient();
 
   /// HTTP response. `body` is `{"error": "response_too_large"}` if the raw response
@@ -138,14 +154,12 @@ class HttpTestClient {
   [[nodiscard]] BreakerState test_breaker_state() const;
 
  private:
-  static constexpr int kConnectionTimeoutSec = 5;
-  static constexpr int kReadTimeoutSec = 10;
-
   std::string host_;
   int port_;
   std::unique_ptr<httplib::Client> client_;
 
   RetryPolicy retry_;
+  TimeoutConfig timeouts_;
   // CircuitBreaker is defined in the .cpp; held via unique_ptr to keep the
   // header free of <atomic>/<mutex>/<random> and preserve ABI flexibility.
   struct CircuitBreaker;
