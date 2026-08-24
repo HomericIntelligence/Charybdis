@@ -31,7 +31,7 @@ runs:
   steps:
     - name: Detect Conan profile
       shell: bash
-      run: conan profile detect --force
+      run: uv run conan profile detect --force
 
     - name: Install Conan dependencies
       shell: bash
@@ -46,7 +46,7 @@ runs:
         BUILD_TYPE_CAP=$(echo "${BUILD_TYPE}" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
         FOLDER="${OUTPUT_FOLDER:-build/${BUILD_TYPE}}"
         if [ "${COMPILER}" = "clang" ]; then
-          CC=clang CXX=clang++ conan install . \
+          CC=clang CXX=clang++ uv run conan install . \
             --output-folder="${FOLDER}" \
             --build=missing \
             --lockfile=conan.lock \
@@ -56,7 +56,7 @@ runs:
             -s compiler.libcxx=libstdc++11 \
             -s compiler.cppstd="${CPPSTD}"
         else
-          conan install . \
+          uv run conan install . \
             --output-folder="${FOLDER}" \
             --build=missing \
             --lockfile=conan.lock \

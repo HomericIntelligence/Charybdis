@@ -18,16 +18,19 @@ jobs:
         build_type: [debug, release]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9  # v9.0.0
+        with:
+          enable-cache: true
       - name: Install dependencies
         env:
           COMPILER: ${{ matrix.compiler }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build python3-pip
+          uv sync --locked
           if [ "${COMPILER}" = "clang" ]; then
+            sudo apt-get update
             sudo apt-get install -y clang
           fi
-          pip3 install --user conan
       - name: Install Conan dependencies
         uses: ./.github/actions/conan-install
         with:
@@ -41,15 +44,15 @@ jobs:
           if [ "${COMPILER}" = "clang" ]; then
             export CC=clang CXX=clang++
           fi
-          cmake --preset "${BUILD_TYPE}"
+          uv run cmake --preset "${BUILD_TYPE}"
       - name: Build
         env:
           BUILD_TYPE: ${{ matrix.build_type }}
-        run: cmake --build --preset "${BUILD_TYPE}"
+        run: uv run cmake --build --preset "${BUILD_TYPE}"
       - name: Test
         env:
           BUILD_TYPE: ${{ matrix.build_type }}
-        run: ctest --preset "${BUILD_TYPE}"
+        run: uv run ctest --preset "${BUILD_TYPE}"
 
   build:
     name: build
