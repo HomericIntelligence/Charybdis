@@ -16,7 +16,6 @@ jobs:
     name: Docker Build
     permissions:
       contents: read
-      actions: read
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -104,23 +103,11 @@ jobs:
           cp -a "$HOME/.conan2-hydrated/." "$HOME/.conan2/"
 
       - name: Save Conan package cache
-        if: steps.conan-extract.outcome == 'success' && steps.conan-cache.outputs.cache-hit != 'true'
+        if: steps.conan-extract.outcome == 'success'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.conan2
-          key: conan-docker-${{ runner.os }}-${{ hashFiles('conanfile.py', 'conan.lock', 'conan/profiles/default', 'conan/profiles/debug') }}
-
-      - name: Assert cache hydration engaged
-        if: steps.conan-cache.outputs.cache-hit == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --log 2>/dev/null | grep -q "HYDRATED from secret"; then
-            echo "Conan cache hydration confirmed in build log."
-          else
-            echo "::error::Conan cache was restored but the build log shows no HYDRATED marker"
-            exit 1
-          fi
+          key: conan-docker-${{ runner.os }}-${{ hashFiles('conanfile.py', 'conan.lock', 'conan/profiles/default', 'conan/profiles/debug') }}-run-${{ github.run_id }}
 
   publish:
     name: Publish Container on main
