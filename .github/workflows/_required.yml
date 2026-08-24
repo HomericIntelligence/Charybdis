@@ -165,6 +165,37 @@ jobs:
       # use via `just ci-security-dependency-scan`.
       - name: security-dependency-scan (in container)
         run: bash scripts/run_ci_local.sh security-dependency-scan
+      - name: Install Conan (for audit)
+        run: pip3 install --user conan
+      - name: "Run Conan audit (skip only when subcommand absent; #71)"
+        # `conan audit` is NOT suppressed: it fails the job on any CVE at or
+        # above the severity threshold, exactly like a real scan should. The
+        # ONLY skip path is the `conan audit --help` presence probe below.
+        # The ConanCenter provider requires a token (register at
+        # https://conan.io/audit/register); it is injected via the
+        # CONAN_AUDIT_PROVIDER_TOKEN_CONANCENTER env var that the Conan audit
+        # API reads, sourced from the CONAN_AUDIT_TOKEN repository secret. A
+        # missing token is a hard error, never a silent skip.
+        env:
+          CONAN_AUDIT_PROVIDER_TOKEN_CONANCENTER: ${{ secrets.CONAN_AUDIT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! conan audit --help >/dev/null 2>&1; then
+            echo "::notice::conan audit subcommand not available in this Conan version - skipping"
+            exit 0
+          fi
+          if [ ! -f conan.lock ]; then
+            echo "::error::conan.lock missing - required for a deterministic CVE scan"
+            exit 1
+          fi
+          if [ -z "${CONAN_AUDIT_PROVIDER_TOKEN_CONANCENTER}" ]; then
+            echo "::error::CONAN_AUDIT_TOKEN secret is not set. Register at https://conan.io/audit/register and add the token as the CONAN_AUDIT_TOKEN repository secret."
+            exit 1
+          fi
+          conan profile detect --force >/dev/null
+          # Fails (non-zero exit) when any dependency has a CVE with severity
+          # >= 7.0 (CRITICAL+HIGH), matching the Trivy gate's severity stance.
+          conan audit scan . -l conan.lock -sl 7.0
 
   security-secrets-scan:
     name: security/secrets-scan

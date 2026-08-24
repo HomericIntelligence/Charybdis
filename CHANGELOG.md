@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `ci(security)`: run `conan audit scan` (lockfile-driven, `-sl 7.0`) in the
+  `security/dependency-scan` job with no `|| true` suppression — the only skip
+  path is the `conan audit --help` subcommand presence probe (#71). The
+  ConanCenter provider token is injected from the `CONAN_AUDIT_TOKEN`
+  repository secret; a missing token is a hard error, never a silent skip.
 - `feat(build)`: migrate from pixi to uv for the build toolchain (Odysseus
   ADR-018, mirroring Agamemnon #457). CMake/Ninja/Conan/gcovr/pre-commit are now
   uv-managed locked PyPI wheels (`pyproject.toml` + `uv.lock`); the C++ compiler
