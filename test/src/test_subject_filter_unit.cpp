@@ -7,6 +7,7 @@
  * between tests cannot cause ordering-dependent results.
  */
 
+#include "charybdis/http_test_client.hpp"
 #include "charybdis/subject_filter.hpp"
 
 #include <cstdlib>
@@ -138,6 +139,66 @@ TEST(SubjectFilterTest, EmptySubjectUnderActivePrefixThrowsViolation) {
   ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
   ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   EXPECT_THROW(require_subject_allowed("queue-starve", ""), SubjectFilterViolation);
+}
+
+// ── Choke-point enforcement inside HttpTestClient (issue #179 review) ────────
+//
+// The gate must hold for ANY caller of HttpTestClient::post, not only the
+// safe_inject_queue_starve wrapper. Port 1 is used so a connection-refused
+// failure (status == 0) happens immediately without a live server.
+
+TEST(HttpClientSubjectGateTest, PostQueueStarveRejectsNonMatchingSubject) {
+  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  HttpTestClient client("http://127.0.0.1:1");
+  HttpTestClient::Response response{0, {}};
+  EXPECT_THROW(response = client.post("/v1/chaos/queue-starve", {{"subject", "prod.orders.>"}}),
+               SubjectFilterViolation);
+}
+
+TEST(HttpClientSubjectGateTest, PostQueueStarveRejectsMissingSubject) {
+  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  HttpTestClient client("http://127.0.0.1:1");
+  HttpTestClient::Response response{0, {}};
+  EXPECT_THROW(response = client.post("/v1/chaos/queue-starve"), SubjectFilterViolation);
+}
+
+TEST(HttpClientSubjectGateTest, PostQueueStarveRejectsEmptySubjectField) {
+  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  HttpTestClient client("http://127.0.0.1:1");
+  HttpTestClient::Response response{0, {}};
+  EXPECT_THROW(response = client.post("/v1/chaos/queue-starve", {{"subject", ""}}),
+               SubjectFilterViolation);
+}
+
+TEST(HttpClientSubjectGateTest, PostQueueStarveAllowsNamespacedSubjectThroughGate) {
+  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  HttpTestClient client("http://127.0.0.1:1");
+  HttpTestClient::Response response{0, {}};
+  EXPECT_NO_THROW(response = client.post("/v1/chaos/queue-starve", {{"subject", "hi.test.gated"}}));
+  EXPECT_EQ(response.status, 0);  // connection refused: the guard did not fire
+}
+
+TEST(HttpClientSubjectGateTest, DisableFlagAllowsNonMatchingSubjectThroughHttpPostGate) {
+  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  disabled.set("1");
+  HttpTestClient client("http://127.0.0.1:1");
+  HttpTestClient::Response response{0, {}};
+  EXPECT_NO_THROW(response = client.post("/v1/chaos/queue-starve", {{"subject", "prod.orders.>"}}));
+  EXPECT_EQ(response.status, 0);  // connection refused: the gate was bypassed
+}
+
+TEST(HttpClientSubjectGateTest, OtherEndpointsAreNotGated) {
+  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  HttpTestClient client("http://127.0.0.1:1");
+  HttpTestClient::Response response{0, {}};
+  EXPECT_NO_THROW(response = client.post("/v1/chaos/kill", {{"service", "prod"}}));
+  EXPECT_EQ(response.status, 0);
 }
 
 }  // namespace

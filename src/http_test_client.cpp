@@ -1,5 +1,7 @@
 #include "charybdis/http_test_client.hpp"
 
+#include "charybdis/subject_filter.hpp"
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -26,6 +28,32 @@ nlohmann::json parse_body(const httplib::Response& res) {
   } catch (...) {
     return {{"raw", res.body}};
   }
+}
+
+/// Extracts the optional string `subject` field from a queue-starve body.
+/// Returns the empty string when the field is absent or not a string.
+std::string queue_starve_subject(const nlohmann::json& body) {
+  if (body.is_object()) {
+    const auto it = body.find("subject");
+    if (it != body.end() && it->is_string()) {
+      return it->get<std::string>();
+    }
+  }
+  return {};
+}
+
+/// Choke-point guard for queue-starve injection (issue #179): every
+/// queue-starve POST through this client must carry an explicit
+/// test-namespaced subject. A body-less request stalls ALL pull consumers —
+/// precisely the production-leak risk the filter exists to prevent — so an
+/// absent or empty subject is refused outright.
+void enforce_queue_starve_subject(const std::string& subject) {
+  if (subject.empty()) {
+    throw SubjectFilterViolation(
+        "Charybdis subject filter: queue-starve POST requires an explicit "
+        "'subject' field; a body-less request stalls ALL pull consumers");
+  }
+  require_subject_allowed("queue-starve", subject);
 }
 
 /// Thread-local jitter source. Avoids per-call construction of a Mersenne
@@ -207,6 +235,12 @@ HttpTestClient::Response HttpTestClient::get(const std::string& path) {
 }
 
 HttpTestClient::Response HttpTestClient::post(const std::string& path, const nlohmann::json& body) {
+  // Machine-enforced subject filter (issue #179): the queue-starve gate runs
+  // before any retry/breaker/network logic, so no caller of this client can
+  // bypass it — enforcement is not merely caller-opt-in.
+  if (path == "/v1/chaos/queue-starve") {
+    enforce_queue_starve_subject(queue_starve_subject(body));
+  }
   return post_raw(path, body.dump(), "application/json");
 }
 
@@ -218,6 +252,19 @@ HttpTestClient::Response HttpTestClient::del(const std::string& path) {
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters,readability-convert-member-functions-to-static)
 HttpTestClient::Response HttpTestClient::post_raw(const std::string& path, const std::string& body,
                                                   const std::string& content_type) {
+  // Same gate as `post` (issue #179): `post_raw` must not be a bypass. A raw
+  // body that does not parse as a JSON object with a non-empty subject is
+  // refused — malformed payloads carry no explicit subject to validate.
+  if (path == "/v1/chaos/queue-starve") {
+    try {
+      enforce_queue_starve_subject(queue_starve_subject(nlohmann::json::parse(body)));
+    } catch (const nlohmann::json::parse_error&) {
+      // Convert, not swallow: a malformed body carries no explicit subject.
+      throw SubjectFilterViolation(
+          "Charybdis subject filter: queue-starve raw POST body is not valid "
+          "JSON; an explicit 'subject' field is required");
+    }
+  }
   return run_with_retry(retry_, *cb_, [&] { return client_->Post(path, body, content_type); });
 }
 

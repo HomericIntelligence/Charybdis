@@ -18,6 +18,13 @@ namespace charybdis {
 /// deliberate and never retried). Rejections are recorded in the audit log
 /// as `action: "filter_reject"` records before rethrowing.
 ///
+/// NOTE: enforcement is not caller-opt-in. `HttpTestClient::post` itself
+/// re-applies the gate on the `/v1/chaos/queue-starve` path before any
+/// network/retry/breaker logic, so no unfiltered queue-starve POST is
+/// possible from ANY caller — this wrapper's guard runs first purely to add
+/// the audit trail (`filter_reject` records) and to keep the refusal outside
+/// the client's retry envelope.
+///
 /// NOTE: Agamemnon currently does not interpret the `subject` field in
 /// `POST /v1/chaos/queue-starve`; today the enforcement value of this wrapper
 /// is the client-side gate plus its audit trail. Sending the field keeps the
