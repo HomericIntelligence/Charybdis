@@ -120,18 +120,12 @@ struct HttpTestClient::CircuitBreaker {
 
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 HttpTestClient::HttpTestClient(const std::string& base_url, RetryPolicy retry,
-                               CircuitBreakerConfig breaker_cfg, TimeoutConfig timeouts)
-    : retry_(retry), timeouts_(timeouts), cb_(std::make_unique<CircuitBreaker>(breaker_cfg)) {
-  if (timeouts_.connection_timeout_sec < 0) {
-    throw std::runtime_error("HttpTestClient: connection_timeout_sec must be >= 0, got " +
-                             std::to_string(timeouts_.connection_timeout_sec));
-  }
-  if (timeouts_.read_timeout_sec < 0) {
-    throw std::runtime_error("HttpTestClient: read_timeout_sec must be >= 0, got " +
-                             std::to_string(timeouts_.read_timeout_sec));
-  }
-  // Parse "http://host:port" into host and port
-  const std::regex url_re(R"(https?://([^:]+):(\d+))");
+                               CircuitBreakerConfig breaker_cfg)
+    : retry_(retry), cb_(std::make_unique<CircuitBreaker>(breaker_cfg)) {
+  // Parse "http://host:port" into host and port. The port group
+  // `([1-9]\d{0,4}|0)` rejects leading zeros (e.g. ":080") and bounds the
+  // digit count at 5 so std::stoi on any matched string cannot overflow int.
+  const std::regex url_re(R"(https?://([^:]+):([1-9]\d{0,4}|0))");
   // NOLINTNEXTLINE(misc-const-correctness) — mutated as regex_match output parameter
   std::smatch match = {};
   if (std::regex_match(base_url, match, url_re)) {
