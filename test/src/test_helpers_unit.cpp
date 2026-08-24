@@ -3,7 +3,7 @@
  * @brief Unit tests for test_helpers.hpp inline utilities.
  *
  * Exercises agamemnon_url(), nats_url(), chaos_recovery_timeout(),
- * random_suffix(), describe_payload(), and wait_until() to ensure the
+ * random_suffix(), wait_until(), and faults_contain_ids() to ensure the
  * include/charybdis/test_helpers.hpp lines are covered.
  */
 
@@ -12,8 +12,9 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
+#include <nlohmann/json.hpp>
 #include <string>
-#include <string_view>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -147,6 +148,36 @@ TEST(TestHelpersUnit, WaitUntilReturnsTrueAfterDelay) {
       std::chrono::seconds{5});
   EXPECT_TRUE(result);
   EXPECT_GE(count, 3);
+}
+
+TEST(TestHelpersUnit, FaultsContainIdsEmptyFaultListReturnsFalse) {
+  const nlohmann::json body = {{"faults", nlohmann::json::array()}};
+  EXPECT_FALSE(faults_contain_ids(body, {"fault-a"}));
+}
+
+TEST(TestHelpersUnit, FaultsContainIdsMatchingIdReturnsTrue) {
+  const nlohmann::json body = {
+      {"faults", nlohmann::json::array({{{"id", "fault-a"}, {"type", "latency"}}})}};
+  EXPECT_TRUE(faults_contain_ids(body, {"fault-a"}));
+}
+
+TEST(TestHelpersUnit, FaultsContainIdsNonMatchingIdsOnlyReturnsFalse) {
+  const nlohmann::json body = {
+      {"faults",
+       nlohmann::json::array({{{"id", "other-1"}}, {{"id", "other-2"}}})}};
+  EXPECT_FALSE(faults_contain_ids(body, {"fault-a", "fault-b"}));
+}
+
+TEST(TestHelpersUnit, FaultsContainIdsMissingFaultsKeyReturnsFalse) {
+  const nlohmann::json body = nlohmann::json::object();
+  EXPECT_FALSE(faults_contain_ids(body, {"fault-a"}));
+}
+
+TEST(TestHelpersUnit, FaultsContainIdsMultipleTrackedWithOneLingeringReturnsTrue) {
+  const nlohmann::json body = {
+      {"faults",
+       nlohmann::json::array({{{"id", "unrelated"}}, {{"id", "fault-b"}}})}};
+  EXPECT_TRUE(faults_contain_ids(body, {"fault-a", "fault-b"}));
 }
 
 }  // namespace charybdis
