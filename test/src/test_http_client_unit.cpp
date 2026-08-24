@@ -12,6 +12,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
@@ -205,32 +206,44 @@ class MockServer {
       res.set_content(exact, "text/plain");
     });
 
-    // Issue #80 abrupt-disconnect support: the first hit announces a body of
-    // 1024 bytes, writes a few, then aborts the content provider. cpp-httplib
-    // treats a provider returning false as a fatal stream error and closes
-    // the TCP connection mid-response — the same transport-level abrupt close
-    // a SIGKILLed server produces, but fully deterministic (no cross-thread
-    // teardown race; note svr_.stop() waits for in-flight handlers, so
-    // destroying the server cannot cut off an in-flight request).
-    // Subsequent hits return normally, so retry policies can recover.
-    // The handler captures `this` by value and only reads `flaky_hits_`
-    // atomically — it never mutates `svr_` (no reentrant stop call).
-    svr_.Get("/v1/flaky-once", [this](const httplib::Request& /*req*/, httplib::Response& res) {
-      if (flaky_hits_.fetch_add(1) == 0) {
-        res.set_content_provider(
-            1024, "application/json",
-            [](size_t /*offset*/, size_t /*length*/, httplib::DataSink& sink) -> bool {
-              static constexpr std::string_view kPartial = R"({"partial":)";
-              sink.write(kPartial.data(), kPartial.size());
-              return false;  // abort → abrupt TCP close mid-body
-            });
-      } else {
-        res.set_content(R"({"flaky":"ok"})", "application/json");
-      }
+    // Chunked stream with no Content-Length: 100 MB offered in 64 KB chunks.
+    // `chunked_sent_` meters what the server actually pushed, proving the
+    // client aborts mid-stream instead of buffering the whole body (#140).
+    svr_.Get("/v1/chunked-huge", [this](const httplib::Request& /*req*/, httplib::Response& res) {
+      res.set_chunked_content_provider("application/octet-stream",
+                                       [this](size_t offset, httplib::DataSink& sink) -> bool {
+                                         constexpr size_t kChunk = 64 * 1024;
+                                         constexpr size_t kTotal = 100 * 1024 * 1024;
+                                         if (offset >= kTotal) {
+                                           sink.done();
+                                           return true;
+                                         }
+                                         const std::string chunk(kChunk, 'x');
+                                         if (!sink.write(chunk.data(), chunk.size())) {
+                                           return false;  // client hung up — stop producing
+                                         }
+                                         chunked_sent_ += chunk.size();
+                                         return true;
+                                       });
     });
-  }
 
-  void start_thread_and_wait() {
+    // Declared Content-Length of 100 MB: the client must abort on the header
+    // alone, before the provider streams any body bytes.
+    svr_.Get("/v1/declared-huge", [this](const httplib::Request& /*req*/, httplib::Response& res) {
+      constexpr size_t kTotal = 100 * 1024 * 1024;
+      res.set_content_provider(
+          kTotal, "application/octet-stream",
+          [this](size_t /*offset*/, size_t /*length*/, httplib::DataSink& sink) -> bool {
+            constexpr size_t kChunk = 64 * 1024;
+            const std::string chunk(kChunk, 'x');
+            if (!sink.write(chunk.data(), chunk.size())) {
+              return false;  // client hung up — stop producing
+            }
+            declared_sent_ += chunk.size();
+            return true;
+          });
+    });
+
     thread_ = std::thread([this]() { svr_.listen_after_bind(); });
 
     // Wait until the server is actually accepting connections (5 s timeout)
@@ -243,8 +256,27 @@ class MockServer {
     }
   }
 
+  ~MockServer() {
+    svr_.stop();
+    if (thread_.joinable()) {
+      thread_.join();
+    }
+  }
+
+  MockServer(const MockServer&) = delete;
+  MockServer& operator=(const MockServer&) = delete;
+  MockServer(MockServer&&) = delete;
+  MockServer& operator=(MockServer&&) = delete;
+
+  [[nodiscard]] int port() const { return port_; }
+  [[nodiscard]] size_t chunked_sent() const { return chunked_sent_.load(); }
+  [[nodiscard]] size_t declared_sent() const { return declared_sent_.load(); }
+
+ private:
   httplib::Server svr_;
   int port_{0};
+  std::atomic<size_t> chunked_sent_{0};
+  std::atomic<size_t> declared_sent_{0};
   std::thread thread_;
   std::atomic<int> flaky_hits_{0};
 };
@@ -336,6 +368,29 @@ TEST_F(HttpTestClientOnline, BoundaryBodyNotRejected) {
   (void)status;
   EXPECT_EQ(status, 200);
   EXPECT_FALSE(body.value("error", "").find("response_too_large") != std::string::npos);
+}
+
+// ── Transport-layer streaming cap (issue #140) ────────────────────────────────
+
+TEST_F(HttpTestClientOnline, ChunkedOversizedStreamAbortsMidTransfer) {
+  auto [status, body] = client_->get("/v1/chunked-huge");
+  (void)status;
+  EXPECT_EQ(body.value("error", ""), "response_too_large");
+  // The server offered 100 MB; the client must hang up near the 10 MB cap.
+  // Loopback socket buffers let the server keep writing for a while after
+  // the client tears down the connection (observed ~19 MB here), so allow
+  // generous slack — but still far below the full offered body, which is
+  // what distinguishes a mid-stream abort from full buffering.
+  EXPECT_LT(mock_->chunked_sent(), 50 * 1024 * 1024);
+}
+
+TEST_F(HttpTestClientOnline, DeclaredOversizedBodyAbortsBeforeDownload) {
+  auto [status, body] = client_->get("/v1/declared-huge");
+  EXPECT_EQ(status, 200);  // status line was read; contract preserves it
+  EXPECT_EQ(body.value("error", ""), "response_too_large");
+  // Content-Length fast-path: the client aborts on the header alone, so only
+  // socket-buffer slack ever leaves the server (same slack caveat as above).
+  EXPECT_LT(mock_->declared_sent(), 50 * 1024 * 1024);
 }
 
 // ── client_ single-construction (#82) ─────────────────────────────────────────

@@ -91,9 +91,12 @@ struct CircuitBreakerConfig {
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions,hicpp-special-member-functions)
 class HttpTestClient {
  public:
-  /// Maximum response body size accepted by the client. Responses exceeding this
-  /// limit are rejected and `Response::body` is replaced with
-  /// `{"error": "response_too_large"}` (status code is preserved). Callers asserting
+  /// Maximum response body size accepted by the client. Enforced at the
+  /// transport layer via a streaming content receiver (issue #140): the
+  /// download is aborted mid-stream once the cap is exceeded, so at most
+  /// `kMaxBodyBytes` plus one receive chunk is ever buffered. Oversized
+  /// responses yield `{"error": "response_too_large"}` with the server's
+  /// status code preserved; they are never retried. Callers asserting
   /// on response shape must account for this contract.
   // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result)
   static constexpr std::size_t kMaxBodyBytes = 10 * 1024 * 1024;  // 10 MB
@@ -171,9 +174,11 @@ class HttpTestClient {
   std::unique_ptr<CircuitBreaker> cb_;
 
   /// Internal: apply the retry-with-backoff envelope around an httplib call.
-  /// `func` must be invocable and return an `httplib::Result`-like value
-  /// (truthy on response, falsy on transient failure). Implemented as a
-  /// private static so it can refer to the private `CircuitBreaker` type.
+  /// `func` must be invocable and return an internal wire-result value
+  /// (transient flag + status + body): `transient == true` (connection-level
+  /// failure) triggers retry; any concrete response — including size aborts —
+  /// is returned unchanged. Implemented as a private static so it can refer
+  /// to the private `CircuitBreaker` type.
   template <typename Fn>
   static Response run_with_retry(const RetryPolicy& policy, CircuitBreaker& breaker, Fn func);
 };
