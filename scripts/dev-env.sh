@@ -14,6 +14,11 @@
 # libgtest") for the full failure-mode description and recovery steps.
 
 _charybdis_sanitize_path() {
+	# Escape hatch first: leave the caller's PATH untouched when set.
+	if [ "${CHARYBDIS_ALLOW_FOREIGN_ENV:-0}" = "1" ]; then
+		return 0
+	fi
+
 	local cleaned=()
 	local removed=()
 	local entry
@@ -40,10 +45,6 @@ _charybdis_sanitize_path() {
 
 	PATH="$(IFS=':'; echo "${cleaned[*]:-/usr/local/bin:/usr/bin:/bin}")"
 	export PATH
-
-	if [ "${CHARYBDIS_ALLOW_FOREIGN_ENV:-0}" = "1" ]; then
-		return 0
-	fi
 
 	{
 		echo "WARNING: removed foreign conda/pixi entries from PATH:"
