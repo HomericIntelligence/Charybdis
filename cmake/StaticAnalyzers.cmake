@@ -9,71 +9,108 @@ if(${PROJECT_NAME}_ENABLE_CLANG_TIDY)
   if(CLANGTIDY)
     set(_clangtidy_extra_args --extra-arg=-Wno-unknown-warning-option)
 
-    # Conda/pixi sysroot fix (issue #84). Conda's clang-tidy does not pick up
-    # the matching sysroot or resource directory by default, so libc headers
-    # like <stddef.h> fail to resolve. CI (apt clang-tidy on ubuntu-24.04) has
-    # no CONDA_PREFIX and is unaffected.
+    # Conda/pixi sysroot fix (issue #84). A conda toolchain resolves headers
+    # against two locations: the conda cross sysroot (libc headers such as
+    # wchar.h) and the GCC builtin include dir (compiler builtins such as
+    # stddef.h). clang-tidy inherits neither automatically, so BOTH paths are
+    # derived from the live compiler and passed to clang-tidy as a pair:
+    #   --extra-arg=-isystem<$CXX -print-file-name=include>  (builtins)
+    #   --extra-arg=--sysroot=<$CXX -print-sysroot>         (libc, optional)
+    # --sysroot alone re-breaks builtin resolution; -isystem alone does not
+    # redirect libc resolution. See Mnemosyne skill
+    # 'clang-tidy-conda-sysroot-isystem-pairing'. CI (apt clang-tidy on
+    # ubuntu-24.04) has no CONDA_PREFIX and is unaffected.
     if(DEFINED ENV{CONDA_PREFIX})
       set(_conda_prefix "$ENV{CONDA_PREFIX}")
-      set(_conda_sysroot "${_conda_prefix}/x86_64-conda-linux-gnu/sysroot")
 
-      # Verify clang-tidy supports --extra-arg-before; the whole fix depends on it.
+      # Verify clang-tidy supports --extra-arg; the whole fix depends on it.
       execute_process(
         COMMAND "${CLANGTIDY}" --help
         OUTPUT_VARIABLE _ct_help
         ERROR_QUIET
         OUTPUT_STRIP_TRAILING_WHITESPACE
         RESULT_VARIABLE _ct_help_rc)
-      string(FIND "${_ct_help}" "--extra-arg-before" _ct_has_extra_arg_before)
+      string(FIND "${_ct_help}" "--extra-arg" _ct_has_extra_arg)
 
-      # Resolve the conda C++ compiler that ships in the same env as clang-tidy
-      # and ask *it* for the resource directory, so we never pick a stray clang.
-      find_program(_conda_cxx
-        NAMES x86_64-conda-linux-gnu-clang++ x86_64-conda-linux-gnu-c++ clang++
-        HINTS "${_conda_prefix}/bin"
-        NO_DEFAULT_PATH)
+      # Resolve the live compiler of the conda env and ask *it* for both the
+      # GCC builtin include dir and the sysroot, so we never pick a stray
+      # toolchain. Prefer $CXX from the activated env when it points into it;
+      # conda-forge's cxx-compiler ships GCC, hence the g++-flavored names.
+      set(_conda_cxx "")
+      if(DEFINED ENV{CXX} AND EXISTS "$ENV{CXX}")
+        get_filename_component(_cxx_real "$ENV{CXX}" REALPATH)
+        get_filename_component(_conda_prefix_real "${_conda_prefix}" REALPATH)
+        string(FIND "${_cxx_real}" "${_conda_prefix_real}" _cxx_in_prefix)
+        if(NOT _cxx_in_prefix EQUAL -1)
+          set(_conda_cxx "$ENV{CXX}")
+        endif()
+      endif()
+      if(NOT _conda_cxx)
+        find_program(_conda_cxx_prog
+          NAMES x86_64-conda-linux-gnu-c++ x86_64-conda-linux-gnu-g++
+                x86_64-conda-linux-gnu-clang++ c++ g++
+          HINTS "${_conda_prefix}/bin"
+          NO_DEFAULT_PATH)
+        if(_conda_cxx_prog)
+          set(_conda_cxx "${_conda_cxx_prog}")
+        endif()
+      endif()
 
-      set(_conda_clang_resource_dir "")
-      set(_conda_cxx_rc 1)
+      set(_gcc_include_dir "")
+      set(_gcc_include_rc 1)
+      set(_reported_sysroot "")
+      set(_sysroot_rc 1)
       if(_conda_cxx)
+        # GCC builtin include dir (stddef.h, stdarg.h, ...).
         execute_process(
-          COMMAND "${_conda_cxx}" -print-resource-dir
-          OUTPUT_VARIABLE _conda_clang_resource_dir
+          COMMAND "${_conda_cxx}" -print-file-name=include
+          OUTPUT_VARIABLE _gcc_include_dir
           ERROR_QUIET
           OUTPUT_STRIP_TRAILING_WHITESPACE
-          RESULT_VARIABLE _conda_cxx_rc)
+          RESULT_VARIABLE _gcc_include_rc)
+        # Conda cross sysroot (wchar.h, ...); empty on stock/system toolchains.
+        execute_process(
+          COMMAND "${_conda_cxx}" -print-sysroot
+          OUTPUT_VARIABLE _reported_sysroot
+          ERROR_QUIET
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+          RESULT_VARIABLE _sysroot_rc)
       endif()
 
       set(_conda_ok TRUE)
       set(_conda_fail_reason "")
-      if(NOT _ct_help_rc EQUAL 0 OR _ct_has_extra_arg_before EQUAL -1)
+      if(NOT _ct_help_rc EQUAL 0 OR _ct_has_extra_arg EQUAL -1)
         set(_conda_ok FALSE)
         set(_conda_fail_reason
-            "clang-tidy at ${CLANGTIDY} does not advertise --extra-arg-before (rc=${_ct_help_rc})")
+            "clang-tidy at ${CLANGTIDY} does not advertise --extra-arg (rc=${_ct_help_rc})")
       elseif(NOT _conda_cxx)
         set(_conda_ok FALSE)
         set(_conda_fail_reason
-            "no conda C++ compiler found under ${_conda_prefix}/bin (looked for x86_64-conda-linux-gnu-clang++, x86_64-conda-linux-gnu-c++, clang++)")
-      elseif(NOT _conda_cxx_rc EQUAL 0)
+            "no conda C++ compiler found under ${_conda_prefix}/bin (looked for x86_64-conda-linux-gnu-c++, x86_64-conda-linux-gnu-g++, x86_64-conda-linux-gnu-clang++, c++, g++)")
+      elseif(NOT _gcc_include_rc EQUAL 0)
         set(_conda_ok FALSE)
         set(_conda_fail_reason
-            "${_conda_cxx} -print-resource-dir failed (rc=${_conda_cxx_rc})")
-      elseif(NOT IS_DIRECTORY "${_conda_sysroot}")
-        set(_conda_ok FALSE)
-        set(_conda_fail_reason "conda sysroot not found at ${_conda_sysroot}")
-      elseif(NOT IS_DIRECTORY "${_conda_clang_resource_dir}")
+            "${_conda_cxx} -print-file-name=include failed (rc=${_gcc_include_rc})")
+      elseif(NOT IS_DIRECTORY "${_gcc_include_dir}")
         set(_conda_ok FALSE)
         set(_conda_fail_reason
-            "clang resource dir from ${_conda_cxx} not a directory: '${_conda_clang_resource_dir}'")
+            "GCC builtin include dir from ${_conda_cxx} not a directory: '${_gcc_include_dir}'")
+      elseif(_sysroot_rc EQUAL 0 AND _reported_sysroot
+             AND NOT IS_DIRECTORY "${_reported_sysroot}")
+        set(_conda_ok FALSE)
+        set(_conda_fail_reason
+            "sysroot reported by ${_conda_cxx} not a directory: '${_reported_sysroot}'")
       endif()
 
       if(_conda_ok)
-        list(APPEND _clangtidy_extra_args
-          "--extra-arg-before=--sysroot=${_conda_sysroot}"
-          "--extra-arg-before=-resource-dir=${_conda_clang_resource_dir}")
+        list(APPEND _clangtidy_extra_args "--extra-arg=-isystem${_gcc_include_dir}")
+        if(_reported_sysroot)
+          list(APPEND _clangtidy_extra_args
+               "--extra-arg=--sysroot=${_reported_sysroot}")
+        endif()
         message(STATUS
-          "clang-tidy: conda sysroot=${_conda_sysroot} "
-          "resource-dir=${_conda_clang_resource_dir} (issue #84 fix active)")
+          "clang-tidy: conda gcc-include=${_gcc_include_dir} "
+          "sysroot=${_reported_sysroot} (issue #84 fix active)")
       elseif(CHARYBDIS_CLANGTIDY_ALLOW_BROKEN_SYSROOT)
         message(WARNING
           "clang-tidy conda sysroot probe failed: ${_conda_fail_reason}. "
