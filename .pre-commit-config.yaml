@@ -83,6 +83,12 @@ repos:
         entry: ./scripts/test-merge-queue-policy.py
         files: ^(\.github/workflows/.*\.ya?ml|configs/github/merge-queue-policy\.json|docs/ci/merge-queue\.md|scripts/test-merge-queue-policy\.py|justfile)$
         pass_filenames: false
+      - id: container-attestation
+        name: "validate container SBOM/provenance attestation wiring"
+        language: system
+        entry: ./scripts/test-container-attestation.py
+        files: ^(\.github/workflows/release\.yml|scripts/test-container-attestation\.py)$
+        pass_filenames: false
       - id: require-signed-commits
         name: "require gpg/ssh-signed commits on push"
         description: >

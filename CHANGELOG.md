@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Container release images now carry supply-chain attestations (#108): the
+  release workflow generates an SPDX-JSON SBOM (`anchore/sbom-action`) and
+  publishes signed SLSA build-provenance and SBOM attestations
+  (`actions/attest-build-provenance`, `actions/attest-sbom`) bound to the
+  pushed image digest, verifiable via `gh attestation verify`.
+
 ### Changed
 
 - `feat(build)`: migrate from pixi to uv for the build toolchain (Odysseus

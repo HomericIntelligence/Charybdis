@@ -30,6 +30,11 @@ dev = [
     "mypy>=2.3.0,<3",
     # Dependency vulnerability scan (security/dependency-scan gate).
     "pip-audit>=2.7",
+    # Structural regression tests for GitHub Actions workflow YAML
+    # (scripts/test-container-attestation.py). Declared explicitly rather than
+    # relying on the transitive copy pulled in by pre-commit.
+    "pyyaml>=6.0,<7",
+    "types-pyyaml>=6.0,<7",
 ]
 
 [tool.uv]
