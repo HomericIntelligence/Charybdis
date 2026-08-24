@@ -125,8 +125,7 @@ class MockServer {
   // httplib.h:6310 — `bool bind_to_port(const std::string&, int, int=0)`.
   explicit MockServer(int fixed_port) {
     if (!svr_.bind_to_port("127.0.0.1", fixed_port)) {
-      throw std::runtime_error("MockServer: bind_to_port failed on " +
-                               std::to_string(fixed_port));
+      throw std::runtime_error("MockServer: bind_to_port failed on " + std::to_string(fixed_port));
     }
     port_ = fixed_port;
     register_routes();
@@ -203,20 +202,19 @@ class MockServer {
     // Subsequent hits return normally, so retry policies can recover.
     // The handler captures `this` by value and only reads `flaky_hits_`
     // atomically — it never mutates `svr_` (no reentrant stop call).
-    svr_.Get("/v1/flaky-once",
-             [this](const httplib::Request& /*req*/, httplib::Response& res) {
-               if (flaky_hits_.fetch_add(1) == 0) {
-                 res.set_content_provider(
-                     1024, "application/json",
-                     [](size_t /*offset*/, size_t /*length*/, httplib::DataSink& sink) -> bool {
-                       static constexpr char kPartial[] = R"({"partial":)";
-                       sink.write(kPartial, sizeof(kPartial) - 1);
-                       return false;  // abort → abrupt TCP close mid-body
-                     });
-               } else {
-                 res.set_content(R"({"flaky":"ok"})", "application/json");
-               }
-             });
+    svr_.Get("/v1/flaky-once", [this](const httplib::Request& /*req*/, httplib::Response& res) {
+      if (flaky_hits_.fetch_add(1) == 0) {
+        res.set_content_provider(
+            1024, "application/json",
+            [](size_t /*offset*/, size_t /*length*/, httplib::DataSink& sink) -> bool {
+              static constexpr char kPartial[] = R"({"partial":)";
+              sink.write(kPartial, sizeof(kPartial) - 1);
+              return false;  // abort → abrupt TCP close mid-body
+            });
+      } else {
+        res.set_content(R"({"flaky":"ok"})", "application/json");
+      }
+    });
   }
 
   void start_thread_and_wait() {

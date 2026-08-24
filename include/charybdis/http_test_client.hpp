@@ -27,11 +27,13 @@ struct RetryPolicy {
 /// Retry policy for online/chaos-injection tests where the target server may
 /// be killed and restarted between or during requests. Sized to cover a
 /// `systemd Restart=on-failure RestartSec=1s` supervisor window: three
-/// retries at ~250, ~500, ~1000 ms ≈ 1.75 s total. Inline constexpr so
+/// retries at 400/800/1600 ms nominal ≈ 2.8 s total; even at the jitter
+/// floor uniform(0.5, 1.5) the minimum total is 0.5*(400+800+1600) = 1400 ms,
+/// comfortably ≥ the 1 s window with margin. Inline constexpr so
 /// every TU including this header sees the same definition (C++17 ODR-safe).
 inline constexpr RetryPolicy kChaosResilientPolicy{
     /*max_retries=*/3,
-    /*base_delay_ms=*/250,
+    /*base_delay_ms=*/400,
     /*max_delay_ms=*/2000,
     /*backoff_mult=*/2.0,
 };

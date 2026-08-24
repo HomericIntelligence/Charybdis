@@ -217,11 +217,19 @@ TEST(HttpTestClientRetryUnit, DisabledBreakerNeverTrips) {
 TEST(HttpTestClientRetryUnit, ChaosResilientPolicyMeetsRestartBudget) {
   static_assert(kChaosResilientPolicy.max_retries >= 3,
                 "kChaosResilientPolicy must allow >=3 retries");
-  static_assert(kChaosResilientPolicy.base_delay_ms >= 200,
-                "kChaosResilientPolicy base delay must be >=200ms");
+  static_assert(kChaosResilientPolicy.base_delay_ms >= 400,
+                "kChaosResilientPolicy base delay must be >=400ms to keep the "
+                "jitter-floor budget >= the RestartSec window");
   static_assert(kChaosResilientPolicy.backoff_mult >= 2.0,
                 "kChaosResilientPolicy backoff must be >=2x");
-  // Worst-case total: base*(1 + mult + mult^2) = 250*(1+2+4) = 1750ms.
+  // Jitter is uniform(0.5, 1.5) per delay; encode the jitter-FLOOR total:
+  // 0.5 * base * (1 + mult + mult^2). With base=400ms, mult=2.0 the delays are
+  // 400/800/1600 ms nominal and the floor total is 0.5*(400+800+1600)=1400 ms.
+  // Integer form: (7 * base) / 2 == 3.5 * base == 1400.
+  static_assert((7 * kChaosResilientPolicy.base_delay_ms) / 2 >= 1000,
+                "jitter-floor retry budget must cover systemd RestartSec=1s");
+  // Worst-case MINIMUM total at jitter floor 0.5x: 0.5*(400+800+1600) =
+  // 1400 ms >= the 1 s systemd RestartSec window.
   SUCCEED();
 }
 
