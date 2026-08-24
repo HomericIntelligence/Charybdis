@@ -1,8 +1,6 @@
 option(${PROJECT_NAME}_ENABLE_CLANG_TIDY "Enable clang-tidy" ON)
 option(${PROJECT_NAME}_ENABLE_CPPCHECK "Enable cppcheck" ON)
-option(CHARYBDIS_CLANGTIDY_ALLOW_BROKEN_SYSROOT
-       "When ON, downgrade conda sysroot probe failures from FATAL_ERROR to WARNING (see issue #84)"
-       OFF)
+option(${PROJECT_NAME}_ENABLE_IWYU "Enable include-what-you-use" OFF)
 
 if(${PROJECT_NAME}_ENABLE_CLANG_TIDY)
   find_program(CLANGTIDY clang-tidy)
@@ -128,6 +126,15 @@ if(${PROJECT_NAME}_ENABLE_CLANG_TIDY)
     set(CMAKE_CXX_CLANG_TIDY ${CLANGTIDY} ${_clangtidy_extra_args})
   else()
     message(WARNING "clang-tidy not found")
+  endif()
+endif()
+
+if(${PROJECT_NAME}_ENABLE_IWYU)
+  find_program(INCLUDE_WHAT_YOU_USE_EXECUTABLE include-what-you-use)
+  if(INCLUDE_WHAT_YOU_USE_EXECUTABLE)
+    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE ${INCLUDE_WHAT_YOU_USE_EXECUTABLE} -Xiwyu --error)
+  else()
+    message(WARNING "include-what-you-use not found")
   endif()
 endif()
 
