@@ -32,7 +32,6 @@ class PayloadFuzzingTest : public ::testing::Test {
     }
   }
 
-  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::unique_ptr<HttpTestClient> client_;
 };
 
