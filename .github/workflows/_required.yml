@@ -175,7 +175,9 @@ jobs:
         # https://conan.io/audit/register); it is injected via the
         # CONAN_AUDIT_PROVIDER_TOKEN_CONANCENTER env var that the Conan audit
         # API reads, sourced from the CONAN_AUDIT_TOKEN repository secret. A
-        # missing token is a hard error, never a silent skip.
+        # missing token is a hard error, never a silent skip. NOTE: the
+        # CONAN_AUDIT_TOKEN secret must be provisioned before this change
+        # merges; until then every run of this job fails by design.
         env:
           CONAN_AUDIT_PROVIDER_TOKEN_CONANCENTER: ${{ secrets.CONAN_AUDIT_TOKEN }}
         run: |
