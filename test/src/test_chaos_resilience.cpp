@@ -25,7 +25,9 @@ namespace charybdis {
 class ChaosResilienceTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    client_ = std::make_unique<HttpTestClient>(agamemnon_url());
+    // issue #80: kill-fault injection (R03) requires a retry budget — the
+    // default policy returns status==0 on the first post-kill request.
+    client_ = std::make_unique<HttpTestClient>(agamemnon_url(), kChaosResilientPolicy);
     // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (!client_->is_healthy()) {
       GTEST_SKIP() << "Agamemnon not reachable at " << agamemnon_url();

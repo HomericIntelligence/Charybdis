@@ -22,7 +22,9 @@ namespace charybdis {
 class ChaosApiTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    client_ = std::make_unique<HttpTestClient>(agamemnon_url());
+    // issue #80: kill-fault injection requires a retry budget — the
+    // default policy returns status==0 on the first post-kill request.
+    client_ = std::make_unique<HttpTestClient>(agamemnon_url(), kChaosResilientPolicy);
     audit_ = std::make_unique<ChaosAuditLog>();
     // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (!client_->is_healthy()) {

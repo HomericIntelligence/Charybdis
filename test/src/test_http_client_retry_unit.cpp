@@ -210,4 +210,19 @@ TEST(HttpTestClientRetryUnit, DisabledBreakerNeverTrips) {
   EXPECT_EQ(client.test_breaker_state(), HttpTestClient::BreakerState::kClosed);
 }
 
+// issue #80: lock the chaos-resilient retry budget at compile time so a
+// future tweak cannot silently regress below the typical systemd
+// RestartSec=1s window. static_assert fires at build time — no runtime
+// observation needed.
+TEST(HttpTestClientRetryUnit, ChaosResilientPolicyMeetsRestartBudget) {
+  static_assert(kChaosResilientPolicy.max_retries >= 3,
+                "kChaosResilientPolicy must allow >=3 retries");
+  static_assert(kChaosResilientPolicy.base_delay_ms >= 200,
+                "kChaosResilientPolicy base delay must be >=200ms");
+  static_assert(kChaosResilientPolicy.backoff_mult >= 2.0,
+                "kChaosResilientPolicy backoff must be >=2x");
+  // Worst-case total: base*(1 + mult + mult^2) = 250*(1+2+4) = 1750ms.
+  SUCCEED();
+}
+
 }  // namespace charybdis
