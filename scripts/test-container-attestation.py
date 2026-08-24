@@ -101,6 +101,10 @@ class ContainerAttestationTests(unittest.TestCase):
         self.assertEqual(with_block.get("subject-digest"), DIGEST_EXPR,
                          "provenance must bind the pushed manifest-list digest "
                          "(steps.push.outputs.digest)")
+        self.assertIs(with_block.get("push-to-registry"), True,
+                      "push-to-registry must be true so the attestation is "
+                      "attached to the GHCR image and visible to "
+                      "'gh attestation verify oci://...'")
 
     def test_sbom_step_generates_spdx_json_file(self) -> None:
         step = _find_step("anchore/sbom-action@")
@@ -120,6 +124,10 @@ class ContainerAttestationTests(unittest.TestCase):
                          sbom_with.get("output-file"),
                          "attest-sbom must consume exactly the file the SBOM "
                          "step wrote")
+        self.assertIs(attest_with.get("push-to-registry"), True,
+                      "push-to-registry must be true so the SBOM attestation "
+                      "is attached to the GHCR image and visible to "
+                      "'gh attestation verify oci://...'")
 
     def test_every_release_workflow_action_ref_is_sha_pinned(self) -> None:
         unpinned: list[str] = []
