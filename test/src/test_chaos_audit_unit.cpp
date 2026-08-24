@@ -21,6 +21,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <system_error>
 
 #include <gtest/gtest.h>
 
