@@ -4,11 +4,35 @@ This runbook defines the standing procedure for adding entries to `tsan.supp`.
 Suppressions are added **only** in response to an observed ThreadSanitizer
 failure — never speculatively.
 
+See [Current Status](#current-status) for the evidence justifying the current
+empty state of `tsan.supp`.
+
 ## When This Applies
 
 Only after a TSan CI run on `main` or a pull request fails with a race report.
 If no CI run has produced a `WARNING: ThreadSanitizer:` block, this document
 does not apply and `tsan.supp` must stay empty.
+
+## Current Status
+
+As of 2026-08-23, **no ThreadSanitizer false positive has been observed** on
+this codebase, which is why `tsan.supp` is intentionally empty:
+
+- The prior speculative suppression block (moodycamel lock-free queue symbols)
+  was removed: moodycamel is not linked into any binary in this repository
+  (`grep -rn 'moodycamel\|MoodyCamel' src include test cmake CMakeLists.txt
+  conanfile.py docs tsan.supp` returns no matches).
+- A full local TSan verification run with the emptied suppression file passed:
+  conan install with sanitizer settings → `cmake --preset tsan` →
+  `cmake --build --preset tsan` →
+  `TSAN_OPTIONS="suppressions=<repo>/tsan.supp:second_deadlock_stack=1"
+  ctest --preset tsan` — **51/51 tests passed**.
+  Caveat: the host compiler was gcc 10, while the CI `tsan` job pins gcc 14
+  (ubuntu-24.04); the authoritative CI-side witness for the empty state is a
+  green `Sanitizers / TSan (gcc)` job on this PR and on `main`.
+
+The first genuine `WARNING: ThreadSanitizer:` report from such a run triggers
+the procedure below and the first real entry in `tsan.supp`.
 
 ## Locate the Failure
 
