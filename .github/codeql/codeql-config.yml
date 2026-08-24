@@ -9,3 +9,4 @@ queries:
 # Never analyze the Conan/FetchContent dependency tree or any build output.
 paths-ignore:
   - "build/**"
+  - "**/_deps/**"
