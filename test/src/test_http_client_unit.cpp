@@ -13,6 +13,7 @@
 #include <atomic>
 #include <chrono>
 #include <httplib.h>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
