@@ -14,9 +14,10 @@ ARGS_FILE="${SHIM_DIR}/conan.args"
 
 cat >"${SHIM_DIR}/uname" <<'EOF'
 #!/bin/sh
-case "${SHIM_UNAME_WHAT:-s}" in
-  s) printf '%s\n' "${SHIM_OS:-Linux}" ;;
-  m) printf '%s\n' "${SHIM_ARCH:-x86_64}" ;;
+case "$1" in
+  -s) printf '%s\n' "${SHIM_OS:-Linux}" ;;
+  -m) printf '%s\n' "${SHIM_ARCH:-x86_64}" ;;
+  *)  echo "usage: uname [-s|-m]" >&2; exit 1 ;;
 esac
 EOF
 chmod +x "${SHIM_DIR}/uname"
@@ -36,17 +37,15 @@ fail() {
 }
 
 run_lock() {
-  env -u SHIM_OS -u SHIM_ARCH -u SHIM_UNAME_WHAT \
-    "SHIM_OS=$1" "SHIM_ARCH=$2" "SHIM_UNAME_WHAT=s" \
-    bash -c '
-      export SHIM_UNAME_WHAT=m
-      exec bash "$0" ${3:-}
-    ' "$SCRIPT_UNDER_TEST" 2>"${SHIM_DIR}/stderr"
+  local host_os="$1" host_arch="$2"
+  shift 2
+  env "SHIM_OS=$host_os" "SHIM_ARCH=$host_arch" \
+    bash "$SCRIPT_UNDER_TEST" "$@" 2>"${SHIM_DIR}/stderr"
 }
 
 # Case 1: canonical host — exit 0, full canonical settings passed to conan.
-run_lock Linux x86_64 >/dev/null
-rc=$?
+: >"$ARGS_FILE"
+rc=0; run_lock Linux x86_64 >/dev/null || rc=$?
 [[ $rc -eq 0 ]] || fail "canonical host: expected exit 0, got $rc"
 grep -q -- '-s os=Linux' "$ARGS_FILE" || fail "canonical host: missing '-s os=Linux' in conan args"
 grep -q -- '-s arch=x86_64' "$ARGS_FILE" || fail "canonical host: missing '-s arch=x86_64' in conan args"
@@ -54,7 +53,6 @@ grep -q -- '-s compiler=gcc' "$ARGS_FILE" || fail "canonical host: missing '-s c
 
 # Case 2: mismatched host without --force — exit 1, clear message on stderr.
 : >"$ARGS_FILE"
-run_lock Darwin arm64 >/dev/null || rc=$?
 rc=0; run_lock Darwin arm64 >/dev/null || rc=$?
 [[ $rc -eq 1 ]] || fail "mismatch no-force: expected exit 1, got $rc"
 grep -q 'Darwin/arm64' "${SHIM_DIR}/stderr" || fail "mismatch no-force: stderr missing detected host 'Darwin/arm64'"
