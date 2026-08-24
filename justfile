@@ -6,14 +6,14 @@ default:
 # Install Conan dependencies (gtest). Conan/CMake/Ninja are uv-managed PyPI
 # wheels (ADR-018), so recipes invoke them via `uv run`.
 deps:
-  uv run conan install . --output-folder=build/debug --profile=conan/profiles/debug --build=missing
+  . scripts/dev-env.sh && uv run conan install . --output-folder=build/debug --profile=conan/profiles/debug --build=missing
 
 # Install Conan dependencies for release
 deps-release:
-  uv run conan install . --output-folder=build/release --profile=conan/profiles/default --build=missing
+  . scripts/dev-env.sh && uv run conan install . --output-folder=build/release --profile=conan/profiles/default --build=missing
 
 build: deps
-  uv run cmake --preset debug && uv run cmake --build --preset debug
+  . scripts/dev-env.sh && uv run cmake --preset debug && uv run cmake --build --preset debug
 
 # Pass AGAMEMNON_URL and NATS_URL through to the test process so developers
 # can point integration tests at custom endpoints via their shell env. CTest
@@ -22,6 +22,7 @@ build: deps
 test AGAMEMNON_URL=env_var_or_default("AGAMEMNON_URL", "") NATS_URL=env_var_or_default("NATS_URL", ""):
   #!/usr/bin/env bash
   set -euo pipefail
+  . scripts/dev-env.sh
   export AGAMEMNON_URL="{{AGAMEMNON_URL}}"
   export NATS_URL="{{NATS_URL}}"
   uv run ctest --preset debug --output-on-failure
@@ -44,7 +45,7 @@ format-check:
   ./scripts/format.sh --check
 
 coverage: deps
-  uv run cmake --preset coverage && uv run cmake --build --preset coverage && ./scripts/coverage.sh
+  . scripts/dev-env.sh && uv run cmake --preset coverage && uv run cmake --build --preset coverage && ./scripts/coverage.sh
 
 merge-queue-policy:
   ./scripts/test-merge-queue-policy.py
@@ -52,8 +53,16 @@ merge-queue-policy:
 clean:
   rm -rf build install
 
+# Remove Conan-cached packages and the debug build dir so gtest is rebuilt
+# with the active (sanitized-PATH) compiler. Use after a toolchain mismatch
+# left stale, ABI-incompatible cached binaries behind (#164). Deliberately
+# narrower than `clean`: release/coverage builds are untouched.
+clean-deps:
+  uv run conan remove "gtest/*" -c
+  rm -rf build/debug
+
 ci: merge-queue-policy
-  uv run cmake --preset ci && uv run cmake --build --preset ci && uv run ctest --preset ci
+  . scripts/dev-env.sh && uv run cmake --preset ci && uv run cmake --build --preset ci && uv run ctest --preset ci
 
 # === Containerized CI (podman by default) ===
 

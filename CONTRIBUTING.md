@@ -256,6 +256,39 @@ cmake --preset debug
 Do not use the debug profile inside Docker — it produces larger binaries and is not
 suitable for the production runtime image.
 
+#### Troubleshooting: GCC ABI / undefined reference from libgtest
+
+**Symptom:** the debug link step fails with undefined references such as
+`__cxa_call_terminate`, `_M_replace_cold`, or
+`std::__cxx11::basic_string::str() const&` coming from `libgtest.a`.
+
+**Root cause:** a foreign conda/pixi environment (e.g. a sibling project's
+`.pixi/envs/*/bin` with a conda-forge GCC 14) leaking onto `PATH`. Conan then
+builds gtest against that compiler's C++ runtime, while CMake links your code
+with the system compiler. The two runtimes are ABI-incompatible, so gtest
+symbols go missing at link time. Conan keys cached packages on the *declared*
+`compiler.version` in the profile, not on the compiler actually used, so a
+stale, ABI-poisoned gtest binary can be silently reused even after `PATH` is
+fixed.
+
+**Prevention:** all build entrypoints (`just deps`, `just build`, `just test`,
+`just coverage`, `just ci`, and `scripts/test.sh`) source
+`scripts/dev-env.sh`, which strips conda/pixi bin directories from `PATH`
+before invoking conan/cmake. Set `CHARYBDIS_ALLOW_FOREIGN_ENV=1` to bypass it
+for intentional cross-environment work. You can also verify profile/compiler
+consistency explicitly:
+
+```bash
+./scripts/check-toolchain.sh conan/profiles/debug
+```
+
+**Recovery:** purge stale cached packages and rebuild so gtest is regenerated
+against the now-consistent compiler:
+
+```bash
+just clean-deps && just build
+```
+
 ## Pull Request Process
 
 ### Before You Start
