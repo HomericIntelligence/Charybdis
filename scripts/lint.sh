@@ -9,4 +9,4 @@ if ! cmake --preset debug -DCharybdis_ENABLE_CLANG_TIDY=OFF >/dev/null; then
 fi
 find "${ROOT_DIR}/include" "${ROOT_DIR}/src" "${ROOT_DIR}/test" \
   -name "*.cpp" -o -name "*.hpp" | \
-  xargs clang-tidy -p "${ROOT_DIR}/build/debug" --config-file="${ROOT_DIR}/.clang-tidy" "$@"
+  xargs clang-tidy -p "${ROOT_DIR}/build/debug" "$@"
