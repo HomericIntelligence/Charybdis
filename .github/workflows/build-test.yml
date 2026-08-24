@@ -8,6 +8,9 @@ on:
   merge_group:
     types: [checks_requested]
 
+permissions:
+  contents: read
+
 jobs:
   build-test:
     name: ${{ matrix.os }}-${{ matrix.compiler }}-${{ matrix.build_type }}
