@@ -68,8 +68,13 @@ When running Charybdis against a mesh that carries sensitive agent workloads:
 
 1. **Namespace chaos targets** — restrict fault injection to nodes/services operating
    exclusively on `hi.test.*` subjects so that production subjects are never affected.
-2. **Review subject filters** — confirm that queue-starvation tests target only test-scoped
-   consumers before execution.
+2. **Subject-filter enforcement** — Charybdis enforces a subject-prefix filter on
+   queue-starvation targets at runtime. Default prefix `hi.test.` (build-time configurable
+   via `CHARYBDIS_SUBJECT_PREFIX_DEFAULT`); override with the `CHARYBDIS_SUBJECT_PREFIX`
+   env var. Subjects outside the prefix raise `SubjectFilterViolation` before the HTTP call
+   to Agamemnon and are recorded in the chaos audit log with `action: "filter_reject"`.
+   To disable enforcement on a development mesh, set `CHARYBDIS_SUBJECT_FILTER_DISABLED=1`;
+   the disable flag bypasses the filter regardless of `CHARYBDIS_SUBJECT_PREFIX`.
 3. **Isolate CI secrets** — Agamemnon connection strings and NATS credentials used by
    Charybdis should be scoped to a test environment and rotated independently of production
    credentials.

@@ -95,6 +95,26 @@ TEST_F(ChaosAuditLogTest, RemoveActionIsDistinguishable) {
   EXPECT_EQ(record.value("fault_id", ""), "f-9");
 }
 
+// Issue #179: pre-flight subject-filter rejections are recorded with
+// schema_version 2 and carry the attempted subject + configured prefix.
+TEST_F(ChaosAuditLogTest, FilterRejectWritesSchemaVersion2Record) {
+  {
+    ChaosAuditLog audit;
+    audit.log_filter_reject("queue-starve", "hi.test.queue-starve.e04", "banana.");
+  }
+  auto record = nlohmann::json::parse(slurp(path_));
+  EXPECT_EQ(record.value("schema_version", 0), 2);
+  EXPECT_EQ(record.value("action", ""), "filter_reject");
+  EXPECT_EQ(record.value("fault_type", ""), "queue-starve");
+  ASSERT_TRUE(record.contains("attempted_subject"));
+  EXPECT_EQ(record.value("attempted_subject", ""), "hi.test.queue-starve.e04");
+  ASSERT_TRUE(record.contains("configured_prefix"));
+  EXPECT_EQ(record.value("configured_prefix", ""), "banana.");
+  // Pre-flight rejection: no HTTP call was made, so no status/fault_id.
+  EXPECT_FALSE(record.contains("status"));
+  EXPECT_FALSE(record.contains("fault_id"));
+}
+
 TEST_F(ChaosAuditLogTest, MultipleEventsAreNewlineDelimited) {
   {
     ChaosAuditLog audit;

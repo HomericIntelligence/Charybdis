@@ -24,13 +24,18 @@ namespace charybdis {
 /// chaos fault injection and removal, capturing:
 ///
 ///   * timestamp     — ISO-8601 UTC with millisecond precision
-///   * action        — "inject" | "remove"
+///   * action        — "inject" | "remove" (schema_version 1)
+///                     | "filter_reject" (schema_version 2, issue #179)
 ///   * fault_type    — e.g. "network-partition", "latency", "kill", "queue-starve"
-///   * fault_id      — id returned by Agamemnon (empty for failed/unknown)
+///   * fault_id      — id returned by Agamemnon (empty for failed/unknown;
+///                     absent from filter_reject records, which are pre-flight)
 ///   * target        — Agamemnon base URL the fault was sent to
-///   * status        — HTTP status returned by Agamemnon (0 on transport failure)
+///   * status        — HTTP status returned by Agamemnon (0 on transport failure;
+///                     absent from filter_reject records — no HTTP call is made)
 ///   * requester     — `CHAOS_AUDIT_REQUESTER` env, or `USER`, or "unknown"
-///   * details       — verbatim Agamemnon response body (nlohmann::json)
+///   * details       — verbatim Agamemnon response body (nlohmann::json);
+///                     filter_reject records instead carry attempted_subject
+///                     and configured_prefix
 ///
 /// Output destination is resolved on construction from the `CHAOS_AUDIT_LOG`
 /// environment variable:
@@ -112,6 +117,15 @@ class ChaosAuditLog {
     emit_remove(fault_type, fault_id, target, http_status, response_body);
   }
 
+  /// Log a subject-filter rejection (issue #179): a chaos fault target was
+  /// refused by the client-side subject-prefix guard BEFORE any HTTP call to
+  /// Agamemnon. Emitted with `schema_version: 2` and no HTTP status / fault id
+  /// fields, since none exist for a pre-flight rejection.
+  void log_filter_reject(std::string_view fault_type, std::string_view attempted_subject,
+                         std::string_view configured_prefix) {
+    emit_filter_reject(fault_type, attempted_subject, configured_prefix);
+  }
+
   /// Test/diagnostic accessor: file path actually being written, or empty
   /// string if events go to stderr.
   [[nodiscard]] const std::string& path() const { return path_; }
@@ -189,6 +203,23 @@ class ChaosAuditLog {
         {"status", http_status},
         {"requester", current_requester()},
         {"details", response_body},
+    };
+    write_line(record);
+  }
+
+  /// Issue #179: schema_version 2 record for pre-flight subject-filter
+  /// rejections. Carries the attempted subject and the configured prefix in
+  /// place of the HTTP status / response body fields of action-1 records.
+  void emit_filter_reject(std::string_view fault_type, std::string_view attempted_subject,
+                          std::string_view configured_prefix) {
+    const nlohmann::json record = {
+        {"schema_version", 2},
+        {"timestamp", iso8601_utc_now()},
+        {"action", "filter_reject"},
+        {"fault_type", std::string{fault_type}},
+        {"attempted_subject", std::string{attempted_subject}},
+        {"configured_prefix", std::string{configured_prefix}},
+        {"requester", current_requester()},
     };
     write_line(record);
   }

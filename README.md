@@ -72,6 +72,8 @@ All are optional; defaults point to local development instances.
 | `CHAOS_RECOVERY_TIMEOUT_S` | No       | `10`                       | Seconds R03 waits for Agamemnon to come back after a `kill` fault          |
 | `CHAOS_AUDIT_LOG`          | No       | `stderr`                   | File path for the chaos injection audit trail (issue #44). `-`/`stderr`/unset emit to stderr; any other value is treated as a file path opened in append mode. |
 | `CHAOS_AUDIT_REQUESTER`    | No       | `$USER` or `unknown`       | Identity recorded in each audit record's `requester` field.                |
+| `CHARYBDIS_SUBJECT_PREFIX` | No       | `hi.test.`                 | Subject prefix enforced on queue-starve chaos targets (issue #179). Targets outside the prefix fail fast before any HTTP call and are recorded as `filter_reject` audit records. Build-time default is configurable via the `CHARYBDIS_SUBJECT_PREFIX_DEFAULT` CMake cache variable. |
+| `CHARYBDIS_SUBJECT_FILTER_DISABLED` | No | unset                   | Set to exactly `1` to disable the subject filter entirely; when set, `CHARYBDIS_SUBJECT_PREFIX` is ignored. An explicitly empty prefix without this flag is a configuration error (`SubjectFilterConfigError`). |
 
 Example:
 
