@@ -134,7 +134,7 @@ if(${PROJECT_NAME}_ENABLE_IWYU)
   if(INCLUDE_WHAT_YOU_USE_EXECUTABLE)
     set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE ${INCLUDE_WHAT_YOU_USE_EXECUTABLE} -Xiwyu --error)
   else()
-    message(WARNING "include-what-you-use not found")
+    message(FATAL_ERROR "include-what-you-use not found")
   endif()
 endif()
 
