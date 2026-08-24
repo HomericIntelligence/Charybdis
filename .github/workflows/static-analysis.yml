@@ -19,6 +19,17 @@ jobs:
       - name: Check formatting
         run: ./scripts/format.sh --check
 
+  # clang-tidy: static analysis only — sanitizers are intentionally NOT enabled
+  # here (no -DCharybdis_ENABLE_SANITIZERS=ON / -DCharybdis_ENABLE_TSAN=ON).
+  # Sanitizers are runtime instrumentation (cmake/Sanitizers.cmake adds
+  # -fsanitize=… to compile+link flags); this job runs clang-tidy as a per-TU
+  # front-end pass (CMAKE_CXX_CLANG_TIDY, cmake/StaticAnalyzers.cmake) and never
+  # executes the produced binaries, so the sanitizer runtime would only add
+  # build cost and extra apt deps (libasan8/libubsan1). ASAN and TSan are also
+  # mutually exclusive by design (Sanitizers.cmake:1-2), so "both" is not an
+  # option. Runtime sanitizer coverage lives in the dedicated Sanitizers
+  # workflow (.github/workflows/sanitizers.yml: asan + tsan presets, both with
+  # ctest actually running instrumented tests). Follow-up from #7 / #61.
   clang-tidy:
     name: clang-tidy
     runs-on: ubuntu-24.04
