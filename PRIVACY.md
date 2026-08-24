@@ -27,7 +27,7 @@ Charybdis processes only the metadata necessary to inject and validate chaos fau
 | Fault metadata responses | In-process test assertions | Not persisted beyond the test run |
 | Task routing validation | NATS JetStream (`hi.myrmidon.hello.*`) | Subject names only; message bodies are synthetic fixtures |
 | Resilience metrics | NATS JetStream (`hi.logs.>`) → Argus/Prometheus | Retention governed by the Argus configuration in ProjectArgus |
-| Test output (stdout/stderr) | Local ctest output / CI logs | Ephemeral per test run; CI logs are subject to the GitHub Actions log retention policy |
+| Test output (stdout/stderr) | Local ctest output / CI logs | Ephemeral per test run; on integration-test failure, ctest's `LastTest.log` is uploaded as the `ctest-logs` GitHub Actions artifact (7-day retention). Failure messages describe payloads by length only (`payload(len=N)` via `describe_payload()` in `include/charybdis/test_helpers.hpp`) — never payload content |
 
 ## What Is Never Collected
 
@@ -42,7 +42,13 @@ Charybdis explicitly does not collect, log, or transmit:
 
 ## Log Retention
 
-- **Test output** — ephemeral; discarded when the ctest process exits.
+- **Test output** — ephemeral locally; however, when an integration test fails,
+  ctest's `LastTest.log` (which captures gtest failure messages) is uploaded as
+  the `ctest-logs` GitHub Actions artifact with 7-day retention
+  (see `.github/workflows/integration-tests.yml`). For this reason, test failure
+  messages never include adversarial/fuzzing payload content — payloads are
+  described by length only (`payload(len=N)`, via `describe_payload()` in
+  `include/charybdis/test_helpers.hpp`).
 - **CI logs** — retained according to the GitHub Actions log retention policy for the
   HomericIntelligence organisation (default: 90 days). Logs contain fault parameters and
   pass/fail outcomes, not payload content.

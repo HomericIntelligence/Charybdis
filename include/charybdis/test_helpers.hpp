@@ -5,6 +5,7 @@
 #include <exception>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <string_view>
 #include <thread>
 
 namespace charybdis {
@@ -53,6 +54,17 @@ inline std::chrono::seconds chaos_recovery_timeout() {
 inline std::string random_suffix() {
   auto now = std::chrono::system_clock::now().time_since_epoch();
   return std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(now).count());
+}
+
+/// Describe a payload by length only, for safe inclusion in test failure
+/// messages.
+///
+/// Adversarial/fuzzing payloads must never be streamed into gtest assertion
+/// messages: those messages land in ctest's LastTest.log, which CI uploads as
+/// an artifact on failure. This helper returns a size-only descriptor that by
+/// construction contains no bytes of the payload.
+inline std::string describe_payload(std::string_view payload) {
+  return "payload(len=" + std::to_string(payload.size()) + ")";
 }
 
 /// Extract agent_id from an agent JSON response (handles both flat and nested shapes)
