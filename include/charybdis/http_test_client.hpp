@@ -17,9 +17,14 @@ namespace charybdis {
 /// Defaults reproduce pre-#81 behaviour (5s connect, 10s read). Override
 /// `read_timeout_sec` to a larger value in fixtures that drive
 /// `POST /v1/chaos/latency`, where the injected delay would otherwise be
-/// indistinguishable from a real read-timeout failure. A value of 0 means
-/// "no timeout" (cpp-httplib semantics). Negative values are rejected by
-/// the HttpTestClient constructor.
+/// indistinguishable from a real read-timeout failure.
+///
+/// Values must be >= 0; negative values are rejected by the HttpTestClient
+/// constructor. Note on zero: cpp-httplib 0.18.x forwards these values to a
+/// select()/poll() wait, so sec=0 means a *zero-length* wait — requests fail
+/// almost immediately unless a response is already available. It does NOT
+/// disable the timeout. To tolerate slow (latency-injected) endpoints, use a
+/// large positive value instead.
 struct TimeoutConfig {
   int connection_timeout_sec = 5;
   int read_timeout_sec = 10;

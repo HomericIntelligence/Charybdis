@@ -3,10 +3,11 @@
  * @brief Unit tests for the TimeoutConfig constructor parameter (issue #81).
  *
  * Covers default preservation of the pre-#81 5s/10s behaviour, custom
- * timeout values, validation of negative values, zero ("no timeout")
- * semantics, and a large read timeout for latency-injection fixtures.
- * No live Agamemnon required — uses port 1 (refused) and an in-process
- * mock server.
+ * timeout values, validation of negative values, and the actual semantics of
+ * a zero timeout: cpp-httplib 0.18.x forwards sec=0 to select()/poll() as a
+ * zero-length wait, so requests fail immediately against a slow endpoint
+ * (zero does NOT disable the timeout). No live Agamemnon required — uses
+ * port 1 (refused) and an in-process mock server.
  */
 
 #include "charybdis/http_test_client.hpp"
@@ -41,9 +42,9 @@ TEST(HttpTestClientTimeoutUnit, CustomTimeoutsAcceptedByConstructor) {
 // ── Negative values are rejected ──────────────────────────────────────────────
 
 TEST(HttpTestClientTimeoutUnit, NegativeConnectionTimeoutThrows) {
-  EXPECT_THROW((HttpTestClient("http://127.0.0.1:1", {}, {},
-                               TimeoutConfig{.connection_timeout_sec = -1})),
-               std::runtime_error);
+  EXPECT_THROW(
+      (HttpTestClient("http://127.0.0.1:1", {}, {}, TimeoutConfig{.connection_timeout_sec = -1})),
+      std::runtime_error);
 }
 
 TEST(HttpTestClientTimeoutUnit, NegativeReadTimeoutThrows) {
@@ -52,25 +53,7 @@ TEST(HttpTestClientTimeoutUnit, NegativeReadTimeoutThrows) {
       std::runtime_error);
 }
 
-// ── Zero means "no timeout" (cpp-httplib semantics) ──────────────────────────
-
-TEST(HttpTestClientTimeoutUnit, ZeroConnectionTimeoutAccepted) {
-  HttpTestClient client("http://127.0.0.1:1", {}, {},
-                        TimeoutConfig{.connection_timeout_sec = 0});
-  auto [status, body] = client.get("/x");
-  EXPECT_EQ(status, 0);
-  EXPECT_TRUE(body.empty());
-}
-
-TEST(HttpTestClientTimeoutUnit, ZeroReadTimeoutAccepted) {
-  HttpTestClient client("http://127.0.0.1:1", {}, {},
-                        TimeoutConfig{.read_timeout_sec = 0});
-  auto [status, body] = client.get("/x");
-  EXPECT_EQ(status, 0);
-  EXPECT_TRUE(body.empty());
-}
-
-// ── Mock server: large timeouts must not regress normal operation ────────────
+// ── Mock server ───────────────────────────────────────────────────────────────
 
 /// Minimal in-process HTTP mock server for unit tests (mirrors
 /// test_http_client_unit.cpp).
@@ -81,6 +64,12 @@ class TimeoutMockServer {
     port_ = svr_.bind_to_any_port("127.0.0.1");
 
     svr_.Get("/v1/json", [](const httplib::Request& /*req*/, httplib::Response& res) {
+      res.set_content(R"({"key":"value"})", "application/json");
+    });
+
+    // Delayed endpoint: response only becomes readable after 300 ms.
+    svr_.Get("/v1/slow", [](const httplib::Request& /*req*/, httplib::Response& res) {
+      std::this_thread::sleep_for(std::chrono::milliseconds{300});
       res.set_content(R"({"key":"value"})", "application/json");
     });
 
@@ -115,6 +104,31 @@ class TimeoutMockServer {
   std::thread thread_;
 };
 
+// ── Zero is a zero-length wait, NOT "no timeout" (cpp-httplib 0.18.x) ────────
+
+// Proven against a live in-process server: the endpoint delays 300 ms, so a
+// zero-length select()/poll() wait can never see its response. This pins the
+// semantics called out in the TimeoutConfig docs (PR review on #81).
+TEST(HttpTestClientTimeoutUnit, ZeroReadTimeoutFailsAgainstSlowEndpoint) {
+  TimeoutMockServer mock;
+  HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), {}, {},
+                        TimeoutConfig{.read_timeout_sec = 0});
+  auto [status, body] = client.get("/v1/slow");
+  EXPECT_EQ(status, 0);
+  EXPECT_TRUE(body.empty());
+}
+
+TEST(HttpTestClientTimeoutUnit, ZeroConnectionTimeoutFailsToConnect) {
+  // A zero-length connection wait also fails fast (immediate timeout), which
+  // is why zero must not be used to mean "wait forever".
+  HttpTestClient client("http://127.0.0.1:1", {}, {}, TimeoutConfig{.connection_timeout_sec = 0});
+  auto [status, body] = client.get("/x");
+  EXPECT_EQ(status, 0);
+  EXPECT_TRUE(body.empty());
+}
+
+// ── Large timeouts must not regress normal operation ──────────────────────────
+
 TEST(HttpTestClientTimeoutUnit, LongReadTimeoutPropagatedForLatencyInjection) {
   // A latency-injection fixture would use a large read timeout; assert no
   // functional regression at that value against a live in-process server.
@@ -125,6 +139,18 @@ TEST(HttpTestClientTimeoutUnit, LongReadTimeoutPropagatedForLatencyInjection) {
   HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), {}, {},
                         TimeoutConfig{.read_timeout_sec = 60});
   auto [status, body] = client.get("/v1/json");
+  EXPECT_EQ(status, 200);
+  EXPECT_EQ(body.value("key", ""), "value");
+}
+
+TEST(HttpTestClientTimeoutUnit, LargeReadTimeoutServesSlowEndpoint) {
+  // Companion to ZeroReadTimeoutFailsAgainstSlowEndpoint: the same 300 ms
+  // endpoint is served fine once read_timeout_sec exceeds the injected delay —
+  // exactly the override latency-injection fixtures need.
+  TimeoutMockServer mock;
+  HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), {}, {},
+                        TimeoutConfig{.read_timeout_sec = 60});
+  auto [status, body] = client.get("/v1/slow");
   EXPECT_EQ(status, 200);
   EXPECT_EQ(body.value("key", ""), "value");
 }
