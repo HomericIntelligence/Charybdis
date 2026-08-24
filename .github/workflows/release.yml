@@ -144,6 +144,14 @@ jobs:
           mkdir -p dist
           tar czf "dist/charybdis-linux-amd64.tar.gz" \
             -C build/release Charybdis
+      - name: Generate SHA256 checksum
+        working-directory: dist
+        run: |
+          sha256sum charybdis-linux-amd64.tar.gz \
+            > "charybdis-${{ github.ref_name }}-linux-amd64.tar.gz.sha256"
+      - name: Verify SHA256 checksum
+        working-directory: dist
+        run: sha256sum --check "charybdis-${{ github.ref_name }}-linux-amd64.tar.gz.sha256"
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
