@@ -68,8 +68,13 @@ jobs:
         run: |
           set -euo pipefail
           MILESTONE="${TAG_NAME}"
-          NUMBER=$(gh api "repos/${GITHUB_REPOSITORY}/milestones?state=open" \
-            --jq ".[] | select(.title == env.MILESTONE) | .number" || true)
+          # A failed `gh api` call must not be conflated with "no milestone
+          # found": an API outage here would otherwise silently pass the gate.
+          if ! NUMBER=$(gh api "repos/${GITHUB_REPOSITORY}/milestones?state=open" \
+            --jq ".[] | select(.title == env.MILESTONE) | .number"); then
+            echo "ERROR: gh api milestones query failed; blocking release."
+            exit 1
+          fi
           if [ -z "${NUMBER}" ]; then
             echo "No open milestone titled '${MILESTONE}'; skipping milestone gate."
             exit 0

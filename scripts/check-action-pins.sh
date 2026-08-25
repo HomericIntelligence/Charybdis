@@ -58,7 +58,10 @@ for f in "${files[@]}"; do
     violations=$((violations + 1))
     rel="${f#"${ROOT_DIR}"/}"
     report+=("${rel}:${lineno}: ${value}")
-  done < <(grep -nE '^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*[^[:space:]]' "$f" || true)
+  # grep exits 1 when a file has no `uses:` lines; inside the process
+  # substitution that status is not propagated to the (set -e) parent shell,
+  # so no suppression is needed here.
+  done < <(grep -nE '^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*[^[:space:]]' "$f")
 done
 
 if (( violations > 0 )); then
