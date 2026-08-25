@@ -37,6 +37,10 @@ lint:
 check-action-pins:
   ./scripts/check-action-pins.sh
 
+# Verify the Docker builder installs into its WORKDIR, not a root-pre-created path (#248)
+check-docker-install-prefix:
+  ./scripts/check-docker-install-prefix.sh
+
 format:
   ./scripts/format.sh
 

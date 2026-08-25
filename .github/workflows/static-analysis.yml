@@ -44,6 +44,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: "Verify all uses: references are SHA-pinned"
         run: ./scripts/check-action-pins.sh
+      - name: "Verify Dockerfile install prefix stays inside builder WORKDIR"
+        run: ./scripts/check-docker-install-prefix.sh Dockerfile
 
   markdown-lint:
     name: markdown-lint
