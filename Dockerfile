@@ -38,8 +38,7 @@ ARG USER_NAME=builder
 RUN groupadd -g ${GROUP_ID} ${USER_NAME} \
     && useradd -m -u ${USER_ID} -g ${GROUP_ID} ${USER_NAME} \
     && chmod 755 /home/${USER_NAME} \
-    && mkdir -p /src && chown ${USER_ID}:${GROUP_ID} /src \
-    && mkdir -p /install && chown ${USER_ID}:${GROUP_ID} /install
+    && mkdir -p /src && chown ${USER_ID}:${GROUP_ID} /src
 
 # Provision the uv-managed build toolchain (CMake/Ninja/Conan/gcovr) into a
 # fixed, world-readable project environment. Only the manifest + lockfile are
@@ -96,12 +95,14 @@ RUN cmake -B build -G Ninja \
 # Run tests as part of the build to validate.
 RUN ctest --test-dir build --output-on-failure
 
-# Install to /install (pre-created and owned by ${USER_NAME} above so the
-# non-root builder user can write to it). The CLI target is defined in
-# CMakeLists.txt as `${PROJECT_NAME}_cli` with `OUTPUT_NAME ${PROJECT_NAME}`
-# and installed via GNUInstallDirs RUNTIME DESTINATION → `bin`, so the binary
-# ends up at `/install/bin/Charybdis`.
-RUN cmake --install build --prefix /install
+# Install into a workspace-relative prefix (/src/install, inside WORKDIR /src,
+# which is owned by ${USER_NAME}) so the non-root builder never depends on a
+# root-pre-created absolute path being writable — that invariant broke CI once
+# already (#248) and is enforced by scripts/check-docker-install-prefix.sh.
+# The CLI target is defined in CMakeLists.txt as `${PROJECT_NAME}_cli` with
+# `OUTPUT_NAME ${PROJECT_NAME}` and installed via GNUInstallDirs RUNTIME
+# DESTINATION → `bin`, so the binary ends up at `/src/install/bin/Charybdis`.
+RUN cmake --install build --prefix /src/install
 
 # ---------------------------------------------------------------------------
 # Runtime stage — minimal image containing only the compiled binary.
@@ -115,7 +116,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Source path mirrors the install rule above; renaming to `charybdis` keeps
 # the runtime invocation short and decoupled from the CMake project name.
-COPY --from=builder /install/bin/Charybdis /usr/local/bin/charybdis
+COPY --from=builder /src/install/bin/Charybdis /usr/local/bin/charybdis
 
 USER charybdis
 
