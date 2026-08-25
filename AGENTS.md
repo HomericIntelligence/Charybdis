@@ -21,6 +21,33 @@ that the system recovers gracefully. Proves the HomericIntelligence mesh is resi
 - **Queue starvation** — exhaust myrmidon pull consumers, verify no message loss
 - **Cascade failures** — trigger failure in one component, verify blast radius is contained
 
+## Design Philosophy
+
+These principles govern how agents should interact with and extend Charybdis. This follows
+the design-philosophy convention introduced in ProjectOdyssey.
+
+- **Charybdis observes; it does not participate.** It is an external test harness, not a mesh
+  agent — it exercises the system from the outside and asserts recovery. See
+  [Agent Roles in the Mesh](#agent-roles-in-the-mesh).
+- **All faults flow through Agamemnon's REST API.** Charybdis never manipulates NATS or mesh
+  services directly; fault injection has exactly one entry point. See
+  [How Charybdis Invokes Chaos](#how-charybdis-invokes-chaos).
+- **Fault injection targets test-namespaced subjects only.** Production subjects
+  (`hi.myrmidon.hello.*`, `hi.logs.>`) are never directly disrupted outside an intentional,
+  isolated resilience test. See [Isolation invariant](#nats-subject-namespaces).
+- **Every fault injected must be deleted.** Cleanup via `DELETE /v1/chaos/{id}` is mandatory,
+  regardless of assertion outcome — a test that leaks faults is broken even if it passes. See
+  [Handoff Protocol](#handoff-protocol) and [Security Boundary](#security-boundary).
+- **Skip when the mesh is unreachable, never fail CI for it.** Integration tests use
+  `GTEST_SKIP()` so environments without a live Agamemnon stay green. See
+  [Handoff Protocol](#handoff-protocol).
+- **Strict hygiene always.** C++20 exclusively, tool invocations via `scripts/` wrappers,
+  sanitizer builds in CI, and never `--no-verify`. See
+  [Development Guidelines](#development-guidelines) and [Sanitizers](#sanitizers).
+
+Changes that violate any principle above must update both this section and the enforcing
+mechanism in the same PR, keeping the philosophy and reality in sync.
+
 ## Agent Roles in the Mesh
 
 | Agent | Role |
