@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Behavioral regression tests for staged merge-queue readiness."""
+"""Behavioral regression tests for merge-queue / PR parity."""
 
 from __future__ import annotations
 
@@ -57,12 +57,21 @@ EXPECTED_REQUIRED_WORKFLOWS = {
     "static-analysis.yml",
 }
 
-# Fast smoke-gate design: full CI runs on pull_request/push only (unchanged);
-# merge_group events run exactly ONE workflow (merge-queue-smoke.yml) with
-# exactly one job emitting the merge-queue-smoke context.
-SMOKE_WORKFLOW = "merge-queue-smoke.yml"
-
-EXPECTED_MERGE_GROUP_WORKFLOWS = {SMOKE_WORKFLOW}
+# Parity design: PR and merge_group run the same workflows.
+# Every workflow that handles pull_request (except release/ruleset-audit)
+# must also handle merge_group so required contexts are validated on the
+# merge commit itself, not just the PR head.
+EXPECTED_MERGE_GROUP_WORKFLOWS = {
+    "_required.yml",
+    "build-test.yml",
+    "code-coverage.yml",
+    "codeql.yml",
+    "container.yml",
+    "integration-tests.yml",
+    "lock-check.yml",
+    "sanitizers.yml",
+    "static-analysis.yml",
+}
 
 EXPECTED_FAN_IN_EMITTERS = {
     "build": ("build-test.yml", "build"),
@@ -197,9 +206,10 @@ class MergeQueuePolicyTests(unittest.TestCase):
             triggers = _triggers(workflow)
             self.assertEqual(triggers["push"], {"branches": ["main"]})
             self.assertEqual(triggers["pull_request"], {"branches": ["main"]})
-            # merge_group must not re-run full CI — the queue runs only the
-            # dedicated smoke workflow (runner-slot starvation fix).
-            self.assertNotIn("merge_group", triggers)
+            # Parity: every required carrier must also run on merge_group
+            # so the merge queue validates the same contexts as PR.
+            self.assertIn("merge_group", triggers)
+            self.assertEqual(triggers["merge_group"], {"types": ["checks_requested"]})
 
         self.assertEqual(carriers, EXPECTED_REQUIRED_WORKFLOWS)
         self.assertEqual(set(emitted), policy_contexts)
@@ -228,17 +238,21 @@ class MergeQueuePolicyTests(unittest.TestCase):
 
         self.assertEqual(merge_group_workflows, EXPECTED_MERGE_GROUP_WORKFLOWS)
 
-    def test_merge_queue_smoke_gate_contract(self) -> None:
-        smoke = WORKFLOWS_DIR / SMOKE_WORKFLOW
+    def test_merge_queue_parity_no_dedicated_smoke_workflow(self) -> None:
+        # Parity design: no dedicated smoke workflow. Full CI runs on
+        # both pull_request and merge_group, so queue and PR are identical.
+        smoke = WORKFLOWS_DIR / "merge-queue-smoke.yml"
+        self.assertFalse(smoke.exists(), "merge-queue-smoke.yml must be deleted for parity — full CI now runs on merge_group")
 
-        # Exactly one merge_group workflow, exactly one job, emitting the
-        # single merge-queue-smoke context the queue gates on.
-        self.assertEqual(
-            _triggers(smoke), {"merge_group": {"types": ["checks_requested"]}}
-        )
-        self.assertEqual(
-            _job_contexts(smoke), [("merge-queue-smoke", "merge-queue-smoke")]
-        )
+        # All expected merge_group workflows must emit required contexts or be
+        # part of the parity set; verify no workflow is pull_request-only.
+        for workflow in WORKFLOWS_DIR.glob("*.yml"):
+            triggers = _triggers(workflow)
+            if "pull_request" in triggers and workflow.name != "release.yml" and workflow.name != "ruleset-audit.yml":
+                # release is tag-only, ruleset-audit is audit-only; exclude them
+                # from strict parity but all other PR workflows must have merge_group
+                if workflow.name in EXPECTED_MERGE_GROUP_WORKFLOWS or workflow.name in EXPECTED_REQUIRED_WORKFLOWS:
+                    self.assertIn("merge_group", triggers, f"{workflow.name} handles pull_request but not merge_group — breaks parity")
 
     def test_integration_context_waits_for_actual_suite(self) -> None:
         integration_workflow = WORKFLOWS_DIR / "integration-tests.yml"
@@ -248,7 +262,8 @@ class MergeQueuePolicyTests(unittest.TestCase):
             _context_emitters("integration-tests"),
             ["integration-tests.yml:integration"],
         )
-        self.assertNotIn("merge_group", _triggers(integration_workflow))
+        self.assertIn("merge_group", _triggers(integration_workflow))
+        self.assertEqual(_triggers(integration_workflow)["merge_group"], {"types": ["checks_requested"]})
         self.assertNotIn("integration-tests", _job_names(required_workflow))
         self.assertNotRegex(_job_section(integration_workflow, "integration"), r"(?m)^    if:")
 
@@ -261,6 +276,7 @@ class MergeQueuePolicyTests(unittest.TestCase):
             {
                 "push": {"branches": ["main"]},
                 "pull_request": {"branches": ["main"]},
+                "merge_group": {"types": ["checks_requested"]},
             },
         )
         self.assertIn("needs: [build-test]", build_test)
@@ -282,7 +298,7 @@ class MergeQueuePolicyTests(unittest.TestCase):
         triggers = _triggers(WORKFLOWS_DIR / "_required.yml")
 
         self.assertEqual(
-            set(triggers), {"workflow_run", "pull_request", "push"}
+            set(triggers), {"workflow_run", "pull_request", "push", "merge_group"}
         )
 
     def test_release_publisher_remains_tag_and_manual_only(self) -> None:
@@ -308,7 +324,8 @@ class MergeQueuePolicyTests(unittest.TestCase):
                 _context_emitters(context),
                 [f"{workflow_name}:{job_id}"],
             )
-            self.assertNotIn("merge_group", _triggers(workflow))
+            self.assertIn("merge_group", _triggers(workflow))
+            self.assertEqual(_triggers(workflow)["merge_group"], {"types": ["checks_requested"]})
             self.assertRegex(section, r"(?m)^    needs:")
             self.assertRegex(section, r"(?m)^    if: always\(\)$")
             self.assertIn("needs.", section)

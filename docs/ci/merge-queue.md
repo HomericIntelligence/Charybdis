@@ -15,14 +15,19 @@ jq -r '.required_contexts[]' configs/github/merge-queue-policy.json
 jq '.merge_queue_rule' configs/github/merge-queue-policy.json
 ```
 
-The required-context carriers support `push` and `pull_request` on `main` plus
-`merge_group` with the `checks_requested` action:
+PR and merge queue run the **same workflows**. Every workflow that handles
+`pull_request` on `main` also handles `merge_group` with the
+`checks_requested` action, so the merge commit is validated with the same
+contexts as the PR head:
 
 - `.github/workflows/_required.yml`
 - `.github/workflows/build-test.yml`
 - `.github/workflows/code-coverage.yml`
+- `.github/workflows/codeql.yml`
 - `.github/workflows/container.yml`
 - `.github/workflows/integration-tests.yml`
+- `.github/workflows/lock-check.yml`
+- `.github/workflows/sanitizers.yml`
 - `.github/workflows/static-analysis.yml`
 
 The required `build`, `unit-tests`, `test`, `lint`, and `package` contexts are
@@ -65,4 +70,4 @@ The operator must then queue a representative pull request and record the live
 ruleset response, the correlated `merge_group` check run, and the queued squash
 merge on Charybdis issue #280.
 
-Issue #280 remains open until activation and the queued smoke are complete.
+Issue #280 remains open until activation and the queued merge-group run are complete.

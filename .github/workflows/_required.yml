@@ -11,6 +11,9 @@ on:
   push:
     branches: [main]
 
+  merge_group:
+    types: [checks_requested]
+
 # No concurrency cancellation for workflow_run events — they must always
 # report a result so the branch ruleset check contexts are populated.
 concurrency:
@@ -167,6 +170,9 @@ jobs:
     name: security/secrets-scan
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -197,7 +203,7 @@ jobs:
           fi
 
       - name: Upload Gitleaks SARIF
-        if: always() && hashFiles('gitleaks.sarif') != ''
+        if: always() && hashFiles('gitleaks.sarif') != '' && github.event_name != 'merge_group'
         uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3  # v3
         with:
           sarif_file: gitleaks.sarif
@@ -225,6 +231,9 @@ jobs:
       # use via `just ci-schema-validation`.
       - name: schema-validation (in container)
         run: bash scripts/run_ci_local.sh schema-validation
+
+      - name: Validate merge queue policy and fan-ins
+        run: python3 scripts/test-merge-queue-policy.py
 
   deps-version-sync:
     name: deps/version-sync
