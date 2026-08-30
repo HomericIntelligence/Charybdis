@@ -1,0 +1,12 @@
+name: "Charybdis CodeQL config"
+
+# Keep vulnerability-focused queries; drop the style/maintainability
+# portion of the quality suite (issue #127).
+disable-default-queries: true
+queries:
+  - uses: security-extended
+
+# Never analyze the Conan/FetchContent dependency tree or any build output.
+paths-ignore:
+  - "build/**"
+  - "**/_deps/**"
