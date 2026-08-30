@@ -61,7 +61,6 @@ class HttpTestClientOffline : public ::testing::Test {
   // Port 1 is privileged and always connection-refused on Linux runners.
   // NOLINTNEXTLINE(hicpp-use-equals-default,modernize-use-equals-default)
   HttpTestClientOffline() : client_("http://127.0.0.1:1") {}
-  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   HttpTestClient client_;
 };
 
@@ -199,9 +198,7 @@ class HttpTestClientOnline : public ::testing::Test {
     mock_.reset();
   }
 
-  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::unique_ptr<MockServer> mock_;
-  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::unique_ptr<HttpTestClient> client_;
 };
 
