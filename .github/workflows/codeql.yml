@@ -53,12 +53,13 @@ jobs:
           cmake --build --preset ci
 
       - name: Perform CodeQL Analysis
+        if: github.event_name != 'merge_group'
         uses: github/codeql-action/analyze@e0647621c2984b5ed2f768cb892365bf2a616ad1  # v4.37.2
         with:
           category: /language:cpp
 
       - name: Upload SARIF to GitHub Security tab
-        if: hashFiles('results.sarif') != ''
+        if: hashFiles('results.sarif') != '' && github.event_name != 'merge_group'
         uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3  # v4.37.6
         with:
           sarif_file: results.sarif
