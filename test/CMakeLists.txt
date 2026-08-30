@@ -22,6 +22,13 @@ target_link_libraries(${PROJECT_NAME}_tests
 include(GoogleTest)
 gtest_discover_tests(${PROJECT_NAME}_tests)
 
+# ── CMake module tests (shell-driven, no binary target) ─────────────────────
+# Guards cmake/Sanitizers.cmake's compiler version check (issue #76) by
+# configuring throwaway projects against fake compiler identities.
+add_test(
+  NAME sanitizers_version_guard
+  COMMAND bash ${PROJECT_SOURCE_DIR}/test/cmake/test_sanitizers_version_guard.sh)
+
 # ── Integration tests (require Agamemnon + NATS running) ─────────────────────
 add_executable(${PROJECT_NAME}_integration_tests
     src/test_chaos_api.cpp
