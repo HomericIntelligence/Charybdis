@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `pyproject.toml`, and the Dockerfile builder pulls uv via a digest-pinned
   `COPY --from=uv` named stage. All required check-run names are preserved.
 
+- `tsan.supp` reset to an empty scaffold; speculative moodycamel
+  suppressions removed (moodycamel is not a dependency). Added
+  `docs/tsan-triage.md` runbook for adding TSan suppressions in response
+  to real CI failures (#59).
+
 ## [0.1.0] — 2026-05-04
 
 ### Added
