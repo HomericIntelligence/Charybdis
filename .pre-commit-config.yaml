@@ -35,12 +35,14 @@ repos:
       - id: forbid-or-true
         name: "forbid silent-failure workaround in shell/YAML/Dockerfile/justfile/HCL"
         description: >
-          Rejects the `or-true` idiom (and its whitespace variants) in shell,
-          YAML, Dockerfile, justfile, and HCL sources. Refactor to an explicit
-          `if`-guard, a real conditional, or a documented `set +e`/`set -e`
-          bracket. See HomericIntelligence/Odysseus#280.
+          Rejects the or-true idiom (an `||`-chained `true`, including
+          paren/semicolon/pipe-trailing forms) in shell, YAML, Dockerfile,
+          justfile, and HCL sources. Refactor to an explicit `if`-guard, a real
+          conditional, or a documented `set +e`/`set -e` bracket. Pattern is
+          kept identical to the forbid-suppressions CI gate in
+          scripts/run_ci_local.sh. See Odysseus#280 and Charybdis#247.
         language: pygrep
-        entry: '\|\|\s*true(\s*$|\s+#)'
+        entry: '^(?!\s*#).*\|\|\s*true(\s*$|\s*[#);&|])'
         files: \.(sh|bash|yml|yaml|hcl)$|(^|/)Dockerfile[^/]*$|(^|/)[Jj]ustfile$
         types: [text]
         pass_filenames: true
@@ -110,7 +112,9 @@ repos:
               fi
             else
               # Manual invocation — check unpushed commits on current branch
-              upstream=$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>/dev/null || true)
+              # Explicit empty-string fallback: no upstream configured is not
+              # an error, but the failure must be visible rather than masked.
+              upstream=$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>/dev/null) || upstream=""
               if [ -n "$upstream" ]; then
                 range="$upstream..HEAD"
               else

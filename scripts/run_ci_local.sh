@@ -150,8 +150,31 @@ run_deps-version-sync() {
 }
 
 run_forbid-suppressions() {
-    # No silent failure suppressions
-    run_in_container "! grep -rE '|| true|set +e' scripts/run_ci_local.sh || echo 'forbid-suppressions OK'"
+    # No silent failure suppressions: reject the or-true idiom (an `||`-chained
+    # `true`) in workflows, shell scripts, YAML, Dockerfile, and justfile.
+    # The pattern mirrors the forbid-or-true pre-commit hook so local and CI
+    # enforcement stay in lockstep. Full-line comments are exempt via lookahead.
+    # grep exit codes are handled explicitly: 0 = violation found, 1 = clean,
+    # >=2 = scan error (never treated as a pass).
+    run_in_container "$(cat <<'EOF'
+set -euo pipefail
+pattern='^(?!\s*#).*\|\|\s*true(\s*$|\s*[#);&|])'
+paths=".github/workflows .github/actions .pre-commit-config.yaml scripts justfile Dockerfile"
+rc=0
+matches="$(grep -rnP -- "${pattern}" ${paths})" || rc=$?
+if [ "${rc}" -eq 0 ]; then
+    printf '%s\n' "${matches}"
+    echo "forbid-suppressions: FAILED — silent-failure suppression(s) found above" >&2
+    echo "Refactor to an explicit if-guard (see AGENTS.md, Security Boundary)." >&2
+    exit 1
+fi
+if [ "${rc}" -gt 1 ]; then
+    echo "forbid-suppressions: grep exited ${rc} while scanning (${paths})" >&2
+    exit 1
+fi
+echo 'forbid-suppressions OK'
+EOF
+)"
 }
 
 # ============================================================================

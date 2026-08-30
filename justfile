@@ -93,6 +93,10 @@ ci-deps-version-sync:
 ci-forbid-suppressions:
     ./scripts/run_ci_local.sh forbid-suppressions
 
+# Run forbid-suppressions regression test (host, no container)
+test-forbid-suppressions:
+    ./tests/test-forbid-suppressions.sh
+
 # Run CI justfile-check checks in container
 ci-justfile-check:
     ./scripts/run_ci_local.sh justfile-check
