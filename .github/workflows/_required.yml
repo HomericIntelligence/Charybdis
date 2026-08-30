@@ -323,22 +323,23 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9  # v9.0.0
+        with:
+          enable-cache: true
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build python3-pip
-          pip3 install --user conan
+        run: uv sync --locked
       - name: Install Conan dependencies
         uses: ./.github/actions/conan-install
         with:
           build_type: release
           compiler: gcc
       - name: Configure
-        run: cmake --preset release
+        run: uv run cmake --preset release
       - name: Build
-        run: cmake --build --preset release
+        run: uv run cmake --build --preset release
       - name: Install to staging prefix
-        run: cmake --install build/release --prefix "${RUNNER_TEMP}/install-prefix"
+        run: uv run cmake --install build/release --prefix "${RUNNER_TEMP}/install-prefix"
       - name: Smoke-test installed CLI
         run: |
           set -euo pipefail
