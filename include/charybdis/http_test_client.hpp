@@ -24,6 +24,20 @@ struct RetryPolicy {
   double backoff_mult = 2.0;  // exponential factor; jitter is uniform(0.5, 1.5)
 };
 
+/// Retry policy for online/chaos-injection tests where the target server may
+/// be killed and restarted between or during requests. Sized to cover a
+/// `systemd Restart=on-failure RestartSec=1s` supervisor window: three
+/// retries at 400/800/1600 ms nominal ≈ 2.8 s total; even at the jitter
+/// floor uniform(0.5, 1.5) the minimum total is 0.5*(400+800+1600) = 1400 ms,
+/// comfortably ≥ the 1 s window with margin. Inline constexpr so
+/// every TU including this header sees the same definition (C++17 ODR-safe).
+inline constexpr RetryPolicy kChaosResilientPolicy{
+    /*max_retries=*/3,
+    /*base_delay_ms=*/400,
+    /*max_delay_ms=*/2000,
+    /*backoff_mult=*/2.0,
+};
+
 /// Configuration for the per-client circuit breaker.
 /// Default `failure_threshold = 0` disables the breaker entirely — opt-in to
 /// preserve existing call semantics. When enabled, consecutive transient
@@ -43,6 +57,20 @@ struct CircuitBreakerConfig {
 /// member and reused across `get`/`post`/`del`/`post_raw` calls; `cpp-httplib`'s
 /// `Client` does not support concurrent requests on the same instance. Each test
 /// thread (or async task) must construct its own `HttpTestClient`. See issue #79.
+///
+/// **Reconnect contract (issue #80):** This client deliberately uses
+/// httplib's default `keep_alive_=false` (verified in cpp-httplib 0.18.3
+/// at httplib.h:1540). Every request opens a fresh TCP connection: see
+/// `ClientImpl::send_` at httplib.h:7494 where `close_connection` is set
+/// from `!keep_alive_`, and the scope_exit at httplib.h:7505-7509 closes
+/// the socket unconditionally on that branch. The persistent `client_`
+/// member is therefore immune to a stale-connection failure after a
+/// chaos server is killed and restarted. The remaining failure mode —
+/// a SIGKILL landing during connect or write — is handled by passing
+/// `kChaosResilientPolicy` for the `retry` parameter in chaos fixtures.
+/// Do NOT call `set_keep_alive(true)` on this client: that would
+/// reintroduce the stale-socket race the per-call-reconnect default
+/// avoids.
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions,hicpp-special-member-functions)
 class HttpTestClient {
  public:
