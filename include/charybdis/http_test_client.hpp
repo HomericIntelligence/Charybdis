@@ -53,9 +53,25 @@ class HttpTestClient {
   // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result)
   static constexpr std::size_t kMaxBodyBytes = 10 * 1024 * 1024;  // 10 MB
 
-  /// Construct with optional retry and circuit-breaker policies. The defaults
-  /// preserve pre-#39 behaviour (no retries, no breaker), so existing callers
-  /// require no source changes.
+  /// Construct a client targeting `base_url` with optional retry and
+  /// circuit-breaker policies. The defaults preserve pre-#39 behaviour
+  /// (no retries, no breaker), so existing callers require no source changes.
+  ///
+  /// URL handling: a `base_url` that does not match `https?://host:port`
+  /// silently falls back to `localhost:8080`. A URL that *does* match but
+  /// carries an invalid port fails construction.
+  ///
+  /// Callers constructing from environment-derived URLs (e.g. `agamemnon_url()`)
+  /// should treat construction as failable or rely on the default-URL fallback.
+  ///
+  /// @param base_url Base URL of the target service (default
+  ///   `"http://localhost:8080"`).
+  /// @param retry Retry policy for transient failures (default: disabled).
+  /// @param breaker_cfg Circuit-breaker configuration (default: disabled).
+  /// @throws std::runtime_error if `base_url` matches `https?://host:port` but
+  ///   the port is non-numeric, overflows `int`, or lies outside `[1, 65535]`.
+  ///   No other exceptions escape construction under normal operation;
+  ///   `std::bad_alloc` may propagate from allocation as usual.
   explicit HttpTestClient(const std::string& base_url = "http://localhost:8080",
                           RetryPolicy retry = {}, CircuitBreakerConfig breaker_cfg = {});
   ~HttpTestClient();

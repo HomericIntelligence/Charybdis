@@ -53,6 +53,18 @@ TEST(HttpTestClientUnit, OutOfValidPortRangeThrows) {
   EXPECT_THROW(HttpTestClient("http://127.0.0.1:99999"), std::runtime_error);
 }
 
+TEST(HttpTestClientUnit, InvalidPortErrorMessageContainsPort) {
+  // Documented contract (issue #194): the diagnostic message embeds the
+  // offending port text so failures are actionable.
+  try {
+    const HttpTestClient client("http://127.0.0.1:70000");
+    (void)client;
+    FAIL() << "Expected std::runtime_error for out-of-range port";
+  } catch (const std::runtime_error& e) {
+    EXPECT_NE(std::string(e.what()).find("70000"), std::string::npos);
+  }
+}
+
 // ── Connection-failure paths (port 1 is always refused) ───────────────────────
 
 // NOLINTNEXTLINE(misc-use-internal-linkage)
