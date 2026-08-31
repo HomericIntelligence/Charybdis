@@ -69,9 +69,12 @@ TEST_F(PayloadFuzzingTest, E06TruncatedJson) {
       R"([{"name": "test"})",     // Wrong type + truncated
   };
 
-  for (const auto& payload : truncated) {
+  for (std::size_t i = 0; i < truncated.size(); ++i) {
+    const auto& payload = truncated[i];
     auto [status, body] = client_->post_raw("/v1/agents", payload);
-    EXPECT_NE(status, 500) << "500 on truncated JSON: " << payload;
+    // Index + length only: never stream payload content into assertion
+    // messages (they are captured in the CI LastTest.log artifact).
+    EXPECT_NE(status, 500) << "500 on truncated JSON #" << i << ": " << describe_payload(payload);
   }
 
   // NOLINTNEXTLINE(readability-implicit-bool-conversion)
@@ -104,10 +107,14 @@ TEST_F(PayloadFuzzingTest, E14MissingRequiredFields) {
       {{"name", ""}},                   // Empty string name
   };
 
-  for (const auto& payload : payloads) {
+  for (std::size_t i = 0; i < payloads.size(); ++i) {
+    const auto& payload = payloads[i];
     auto [status, body] = client_->post("/v1/agents", payload);
     // Graceful handling — 2xx with defaults or 4xx rejection
-    EXPECT_NE(status, 500) << "500 on payload: " << payload.dump();
+    // Index + length only: never stream payload content into assertion
+    // messages (they are captured in the CI LastTest.log artifact).
+    EXPECT_NE(status, 500) << "500 on payload (E14 index " << i
+                           << "): " << describe_payload(payload.dump());
   }
 
   // NOLINTNEXTLINE(readability-implicit-bool-conversion)

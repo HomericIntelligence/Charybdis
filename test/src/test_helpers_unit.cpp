@@ -3,15 +3,17 @@
  * @brief Unit tests for test_helpers.hpp inline utilities.
  *
  * Exercises agamemnon_url(), nats_url(), chaos_recovery_timeout(),
- * random_suffix(), and wait_until() to ensure the
+ * random_suffix(), describe_payload(), and wait_until() to ensure the
  * include/charybdis/test_helpers.hpp lines are covered.
  */
 
 #include "charybdis/test_helpers.hpp"
 
 #include <chrono>
+#include <cstddef>
 #include <cstdlib>
 #include <string>
+#include <string_view>
 
 #include <gtest/gtest.h>
 
@@ -76,6 +78,50 @@ TEST(TestHelpersUnit, RandomSuffixIsNumeric) {
   for (const char chr : suffix) {
     EXPECT_TRUE(chr >= '0' && chr <= '9') << "Non-digit in suffix: " << chr;
   }
+}
+
+TEST(TestHelpersUnit, DescribePayloadReportsLengthOnly) {
+  const std::string payload = "secret-content";
+  EXPECT_EQ(describe_payload(payload), "payload(len=14)");
+  EXPECT_EQ(describe_payload(std::string_view{}), "payload(len=0)");
+}
+
+TEST(TestHelpersUnit, DescribePayloadNeverContainsInputBytesPrintable) {
+  const std::string_view payload = "sensitive printable text 12345";
+  const std::string description = describe_payload(payload);
+  // No substring of the input (longer than a single char) may appear
+  EXPECT_EQ(description.find("sensitive"), std::string::npos);
+  for (std::size_t len = 2; len <= payload.size(); ++len) {
+    EXPECT_EQ(description.find(payload.substr(0, len)), std::string::npos)
+        << "Leak at prefix length " << len;
+  }
+}
+
+TEST(TestHelpersUnit, DescribePayloadNeverContainsInputBytesBinary) {
+  // All 256 byte values, including NUL and non-ASCII bytes
+  std::string payload;
+  payload.reserve(256);
+  for (int value = 0; value < 256; ++value) {
+    payload.push_back(static_cast<char>(value));
+  }
+  const std::string description = describe_payload(payload);
+  EXPECT_EQ(description, "payload(len=256)");
+  // The descriptor is pure printable ASCII; no raw payload byte survives.
+  for (const char chr : description) {
+    const auto byte = static_cast<unsigned char>(chr);
+    EXPECT_GE(byte, 0x20U);
+    EXPECT_LT(byte, 0x7FU);
+  }
+}
+
+TEST(TestHelpersUnit, DescribePayloadOversizedInput) {
+  // NOLINTNEXTLINE(bugprone-implicit-widening-of-multiplication-result,misc-const-correctness)
+  const std::string payload(5 * 1024 * 1024, 'A');
+  const std::string description = describe_payload(payload);
+  EXPECT_EQ(description, "payload(len=" + std::to_string(payload.size()) + ")");
+  // Output stays bounded regardless of input size
+  EXPECT_LE(description.size(), static_cast<std::size_t>(64));
+  EXPECT_EQ(description.find('A'), std::string::npos);
 }
 
 TEST(TestHelpersUnit, WaitUntilReturnsTrueImmediately) {
