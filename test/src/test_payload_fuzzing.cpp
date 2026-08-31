@@ -74,8 +74,7 @@ TEST_F(PayloadFuzzingTest, E06TruncatedJson) {
     auto [status, body] = client_->post_raw("/v1/agents", payload);
     // Index + length only: never stream payload content into assertion
     // messages (they are captured in the CI LastTest.log artifact).
-    EXPECT_NE(status, 500) << "500 on truncated JSON #" << i << ": "
-                           << describe_payload(payload);
+    EXPECT_NE(status, 500) << "500 on truncated JSON #" << i << ": " << describe_payload(payload);
   }
 
   // NOLINTNEXTLINE(readability-implicit-bool-conversion)
@@ -114,8 +113,8 @@ TEST_F(PayloadFuzzingTest, E14MissingRequiredFields) {
     // Graceful handling — 2xx with defaults or 4xx rejection
     // Index + length only: never stream payload content into assertion
     // messages (they are captured in the CI LastTest.log artifact).
-    EXPECT_NE(status, 500) << "500 on payload (E14 index " << i << "): "
-                           << describe_payload(payload.dump());
+    EXPECT_NE(status, 500) << "500 on payload (E14 index " << i
+                           << "): " << describe_payload(payload.dump());
   }
 
   // NOLINTNEXTLINE(readability-implicit-bool-conversion)

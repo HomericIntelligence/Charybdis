@@ -86,7 +86,7 @@ TEST(TestHelpersUnit, DescribePayloadReportsLengthOnly) {
   EXPECT_EQ(describe_payload(std::string_view{}), "payload(len=0)");
 }
 
-TEST(TestHelpersUnit, DescribePayloadNeverContainsInputBytes_Printable) {
+TEST(TestHelpersUnit, DescribePayloadNeverContainsInputBytesPrintable) {
   const std::string_view payload = "sensitive printable text 12345";
   const std::string description = describe_payload(payload);
   // No substring of the input (longer than a single char) may appear
@@ -97,7 +97,7 @@ TEST(TestHelpersUnit, DescribePayloadNeverContainsInputBytes_Printable) {
   }
 }
 
-TEST(TestHelpersUnit, DescribePayloadNeverContainsInputBytes_Binary) {
+TEST(TestHelpersUnit, DescribePayloadNeverContainsInputBytesBinary) {
   // All 256 byte values, including NUL and non-ASCII bytes
   std::string payload;
   payload.reserve(256);
