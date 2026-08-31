@@ -110,7 +110,7 @@ class TimeoutMockServer {
 // zero-length select()/poll() wait can never see its response. This pins the
 // semantics called out in the TimeoutConfig docs (PR review on #81).
 TEST(HttpTestClientTimeoutUnit, ZeroReadTimeoutFailsAgainstSlowEndpoint) {
-  TimeoutMockServer mock;
+  const TimeoutMockServer mock;
   HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), {}, {},
                         TimeoutConfig{.read_timeout_sec = 0});
   auto [status, body] = client.get("/v1/slow");
@@ -135,7 +135,7 @@ TEST(HttpTestClientTimeoutUnit, LongReadTimeoutPropagatedForLatencyInjection) {
   // cpp-httplib does not expose its configured timeout for readback, so this
   // asserts correct behaviour rather than the stored value (same precedent
   // as the client-pointer-stability tests in test_http_client_unit.cpp).
-  TimeoutMockServer mock;
+  const TimeoutMockServer mock;
   HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), {}, {},
                         TimeoutConfig{.read_timeout_sec = 60});
   auto [status, body] = client.get("/v1/json");
@@ -147,7 +147,7 @@ TEST(HttpTestClientTimeoutUnit, LargeReadTimeoutServesSlowEndpoint) {
   // Companion to ZeroReadTimeoutFailsAgainstSlowEndpoint: the same 300 ms
   // endpoint is served fine once read_timeout_sec exceeds the injected delay —
   // exactly the override latency-injection fixtures need.
-  TimeoutMockServer mock;
+  const TimeoutMockServer mock;
   HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), {}, {},
                         TimeoutConfig{.read_timeout_sec = 60});
   auto [status, body] = client.get("/v1/slow");
@@ -157,7 +157,7 @@ TEST(HttpTestClientTimeoutUnit, LargeReadTimeoutServesSlowEndpoint) {
 
 TEST(HttpTestClientTimeoutUnit, CustomShortReadTimeoutStillServesFastResponses) {
   // Sanity: a short-but-valid read timeout still handles immediate responses.
-  TimeoutMockServer mock;
+  const TimeoutMockServer mock;
   HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), {}, {},
                         TimeoutConfig{.connection_timeout_sec = 5, .read_timeout_sec = 2});
   auto [status, body] = client.get("/v1/json");
