@@ -70,13 +70,13 @@ elif [[ -z "$runtime" ]]; then
 else
   # Rule 1a: builder declares WORKDIR.
   workdir=$(grep -E '^[[:space:]]*WORKDIR[[:space:]]+[^[:space:]]+' <<<"$builder" \
-    | tail -1 | awk '{print $2}' || true)
+    | tail -1 | awk '{print $2}' ||:)
   if [[ -z "$workdir" ]]; then
     report "builder stage does not declare a WORKDIR"
   fi
 
   # Rule 1b: cmake --install uses a prefix under that WORKDIR.
-  install_line=$(grep -E 'cmake[[:space:]].*--install' <<<"$builder" | head -1 || true)
+  install_line=$(grep -E 'cmake[[:space:]].*--install' <<<"$builder" | head -1 ||:)
   if [[ -z "$install_line" ]]; then
     report "builder stage has no \`cmake --install\` step"
   else
@@ -91,7 +91,7 @@ else
     # Rule 3: runtime COPY source must match <prefix>/bin/Charybdis.
     expected="${prefix}/bin/Charybdis"
     copy_src=$(grep -E -- '--from=builder' <<<"$runtime" | head -1 \
-      | sed -nE 's/.*--from=builder[[:space:]]+([^[:space:]]+).*/\1/p' || true)
+      | sed -nE 's/.*--from=builder[[:space:]]+([^[:space:]]+).*/\1/p' ||:)
     if [[ -z "$copy_src" ]]; then
       report "runtime stage has no \`COPY --from=builder ...\` step"
     elif [[ "$copy_src" != "$expected" ]]; then
@@ -105,7 +105,7 @@ else
     [[ -z "$line" ]] && continue
     report "builder-stage permission workaround for a root install prefix:" \
       "${line}"
-  done < <(grep -E 'chown.*[[:space:]]/install([[:space:]]|$)' <<<"$builder" || true)
+  done < <(grep -E 'chown.*[[:space:]]/install([[:space:]]|$)' <<<"$builder" ||:)
 fi
 
 if (( ${#violations[@]} > 0 )); then
