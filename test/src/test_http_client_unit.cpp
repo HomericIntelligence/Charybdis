@@ -16,6 +16,7 @@
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -207,8 +208,8 @@ class MockServer {
         res.set_content_provider(
             1024, "application/json",
             [](size_t /*offset*/, size_t /*length*/, httplib::DataSink& sink) -> bool {
-              static constexpr char kPartial[] = R"({"partial":)";
-              sink.write(kPartial, sizeof(kPartial) - 1);
+              static constexpr std::string_view kPartial = R"({"partial":)";
+              sink.write(kPartial.data(), kPartial.size());
               return false;  // abort → abrupt TCP close mid-body
             });
       } else {
