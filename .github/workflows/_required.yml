@@ -1,10 +1,6 @@
 name: Required Checks
 
 on:
-  workflow_run:
-    workflows: ["Build and Test", "Static Analysis", "Code Coverage", "CodeQL SAST", "Sanitizers", "Lock Check", "Container Build and Publish", "Integration Tests"]
-    types: [completed]
-
   pull_request:
     branches: [main]
 
@@ -14,59 +10,13 @@ on:
   merge_group:
     types: [checks_requested]
 
-# No concurrency cancellation for workflow_run events — they must always
-# report a result so the branch ruleset check contexts are populated.
+# Keep each protected event and commit independent. A rerun for the same
+# event and SHA must finish so GitHub receives one authoritative result set.
 concurrency:
-  group: required-${{ github.event_name }}-${{ github.ref }}
+  group: required-${{ github.event_name }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # Fan-in jobs: reflect the result of upstream workflows
-  # ---------------------------------------------------------------------------
-
-  security-codeql:
-    name: security/codeql
-    runs-on: ubuntu-24.04
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow.name == 'CodeQL SAST'
-    steps:
-      - name: Check CodeQL SAST result
-        if: github.event_name == 'workflow_run'
-        env:
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          if [ "${CONCLUSION}" != "success" ]; then
-            echo "CodeQL SAST workflow failed with: ${CONCLUSION}"
-            exit 1
-          fi
-          echo "CodeQL SAST passed"
-      - name: Skip (not triggered by this workflow)
-        if: github.event_name != 'workflow_run'
-        run: echo "Not a workflow_run event — pass (actual work done by CodeQL SAST workflow)"
-
-  sanitizers:
-    name: sanitizers
-    runs-on: ubuntu-24.04
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow.name == 'Sanitizers'
-    steps:
-      - name: Check Sanitizers result
-        if: github.event_name == 'workflow_run'
-        env:
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          if [ "${CONCLUSION}" != "success" ]; then
-            echo "Sanitizers workflow failed with: ${CONCLUSION}"
-            exit 1
-          fi
-          echo "Sanitizers passed"
-      - name: Skip (not triggered by this workflow)
-        if: github.event_name != 'workflow_run'
-        run: echo "Not a workflow_run event — pass (actual work done by Sanitizers workflow)"
-
   uv-lock-check:
     name: uv-lock-check
     runs-on: ubuntu-24.04
@@ -90,33 +40,6 @@ jobs:
       # use via `just ci-uv-lock-check`.
       - name: uv-lock-check (in container)
         run: bash scripts/run_ci_local.sh uv-lock-check
-
-  docker-build:
-    name: docker-build
-    runs-on: ubuntu-24.04
-    if: >
-      github.event_name != 'workflow_run' ||
-      github.event.workflow.name == 'Container Build and Publish'
-    steps:
-      - name: Check Container Build and Publish result
-        if: github.event_name == 'workflow_run'
-        env:
-          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-        run: |
-          if [ "${CONCLUSION}" != "success" ]; then
-            echo "Container Build and Publish workflow failed with: ${CONCLUSION}"
-            exit 1
-          fi
-          echo "Container Build and Publish passed"
-      - name: Skip (not triggered by this workflow)
-        if: github.event_name != 'workflow_run'
-        run: echo "Not a workflow_run event — pass (actual work done by Container Build and Publish workflow)"
-
-  # ---------------------------------------------------------------------------
-  # Independent jobs: run directly on push/pull_request
-  # These are skipped when triggered by workflow_run (they don't depend on
-  # any upstream workflow result).
-  # ---------------------------------------------------------------------------
 
   forbid-suppressions:
     name: forbid-suppressions
@@ -318,7 +241,6 @@ jobs:
   lockfile-integrity:
     name: lockfile-integrity
     runs-on: ubuntu-24.04
-    if: github.event_name != 'workflow_run'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Install Conan
@@ -351,7 +273,6 @@ jobs:
   install:
     name: install
     runs-on: ubuntu-24.04
-    if: github.event_name != 'workflow_run'
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -408,7 +329,6 @@ jobs:
   release:
     name: release
     runs-on: ubuntu-24.04
-    if: github.event_name != 'workflow_run'
     timeout-minutes: 10
     permissions:
       contents: read
