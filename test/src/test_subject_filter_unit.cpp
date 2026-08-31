@@ -76,15 +76,15 @@ TEST(SubjectFilterTest, DefaultPrefixIsHiTest) {
 }
 
 TEST(SubjectFilterTest, MatchingSubjectPasses) {
-  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
-  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  const ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  const ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   EXPECT_NO_THROW(require_subject_allowed("queue-starve", "hi.test.foo"));
   EXPECT_NO_THROW(require_subject_allowed("queue-starve", "hi.test."));
 }
 
 TEST(SubjectFilterTest, NonMatchingSubjectThrowsViolation) {
-  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
-  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  const ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  const ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   try {
     require_subject_allowed("queue-starve", "prod.orders.>");
     FAIL() << "expected SubjectFilterViolation";
@@ -99,7 +99,7 @@ TEST(SubjectFilterTest, NonMatchingSubjectThrowsViolation) {
 
 TEST(SubjectFilterTest, EnvVarOverridesDefault) {
   ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
-  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  const ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   prefix.set("stage.");
   EXPECT_NO_THROW(require_subject_allowed("queue-starve", "stage.x"));
   EXPECT_THROW(require_subject_allowed("queue-starve", "hi.test.x"), SubjectFilterViolation);
@@ -107,7 +107,7 @@ TEST(SubjectFilterTest, EnvVarOverridesDefault) {
 
 TEST(SubjectFilterTest, EmptyPrefixWithoutDisableThrowsConfigError) {
   ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
-  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  const ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   prefix.set("");
   try {
     require_subject_allowed("queue-starve", "hi.test.foo");
@@ -120,7 +120,7 @@ TEST(SubjectFilterTest, EmptyPrefixWithoutDisableThrowsConfigError) {
 }
 
 TEST(SubjectFilterTest, DisableFlagAloneAllowsAnySubject) {
-  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  const ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
   ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   disabled.set("1");
   // Prefix left at its default (hi.test.): the disable flag wins outright.
@@ -136,8 +136,8 @@ TEST(SubjectFilterTest, DisableFlagWithExplicitEmptyPrefixAllowsAnySubject) {
 }
 
 TEST(SubjectFilterTest, EmptySubjectUnderActivePrefixThrowsViolation) {
-  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
-  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  const ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  const ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   EXPECT_THROW(require_subject_allowed("queue-starve", ""), SubjectFilterViolation);
 }
 
@@ -148,8 +148,8 @@ TEST(SubjectFilterTest, EmptySubjectUnderActivePrefixThrowsViolation) {
 // failure (status == 0) happens immediately without a live server.
 
 TEST(HttpClientSubjectGateTest, PostQueueStarveRejectsNonMatchingSubject) {
-  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
-  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  const ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  const ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   HttpTestClient client("http://127.0.0.1:1");
   HttpTestClient::Response response{0, {}};
   EXPECT_THROW(response = client.post("/v1/chaos/queue-starve", {{"subject", "prod.orders.>"}}),
@@ -157,16 +157,16 @@ TEST(HttpClientSubjectGateTest, PostQueueStarveRejectsNonMatchingSubject) {
 }
 
 TEST(HttpClientSubjectGateTest, PostQueueStarveRejectsMissingSubject) {
-  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
-  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  const ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  const ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   HttpTestClient client("http://127.0.0.1:1");
   HttpTestClient::Response response{0, {}};
   EXPECT_THROW(response = client.post("/v1/chaos/queue-starve"), SubjectFilterViolation);
 }
 
 TEST(HttpClientSubjectGateTest, PostQueueStarveRejectsEmptySubjectField) {
-  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
-  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  const ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  const ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   HttpTestClient client("http://127.0.0.1:1");
   HttpTestClient::Response response{0, {}};
   EXPECT_THROW(response = client.post("/v1/chaos/queue-starve", {{"subject", ""}}),
@@ -174,8 +174,8 @@ TEST(HttpClientSubjectGateTest, PostQueueStarveRejectsEmptySubjectField) {
 }
 
 TEST(HttpClientSubjectGateTest, PostQueueStarveAllowsNamespacedSubjectThroughGate) {
-  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
-  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  const ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  const ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   HttpTestClient client("http://127.0.0.1:1");
   HttpTestClient::Response response{0, {}};
   EXPECT_NO_THROW(response = client.post("/v1/chaos/queue-starve", {{"subject", "hi.test.gated"}}));
@@ -183,7 +183,7 @@ TEST(HttpClientSubjectGateTest, PostQueueStarveAllowsNamespacedSubjectThroughGat
 }
 
 TEST(HttpClientSubjectGateTest, DisableFlagAllowsNonMatchingSubjectThroughHttpPostGate) {
-  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  const ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
   ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   disabled.set("1");
   HttpTestClient client("http://127.0.0.1:1");
@@ -193,8 +193,8 @@ TEST(HttpClientSubjectGateTest, DisableFlagAllowsNonMatchingSubjectThroughHttpPo
 }
 
 TEST(HttpClientSubjectGateTest, OtherEndpointsAreNotGated) {
-  ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
-  ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
+  const ScopedEnv prefix{"CHARYBDIS_SUBJECT_PREFIX", nullptr};
+  const ScopedEnv disabled{"CHARYBDIS_SUBJECT_FILTER_DISABLED", nullptr};
   HttpTestClient client("http://127.0.0.1:1");
   HttpTestClient::Response response{0, {}};
   EXPECT_NO_THROW(response = client.post("/v1/chaos/kill", {{"service", "prod"}}));

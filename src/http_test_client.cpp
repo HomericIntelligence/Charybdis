@@ -34,9 +34,9 @@ nlohmann::json parse_body(const httplib::Response& res) {
 /// Returns the empty string when the field is absent or not a string.
 std::string queue_starve_subject(const nlohmann::json& body) {
   if (body.is_object()) {
-    const auto it = body.find("subject");
-    if (it != body.end() && it->is_string()) {
-      return it->get<std::string>();
+    const auto subject_it = body.find("subject");
+    if (subject_it != body.end() && subject_it->is_string()) {
+      return subject_it->get<std::string>();
     }
   }
   return {};
