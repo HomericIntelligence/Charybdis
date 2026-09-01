@@ -54,6 +54,10 @@ coverage: deps
 merge-queue-policy:
   ./scripts/test-merge-queue-policy.py
 
+# Structural regression tests for container SBOM/provenance attestation (#108)
+attestation-policy:
+  ./scripts/test-container-attestation.py
+
 clean:
   rm -rf build install
 
@@ -65,7 +69,7 @@ clean-deps:
   uv run conan remove "gtest/*" -c
   rm -rf build/debug
 
-ci: merge-queue-policy
+ci: merge-queue-policy attestation-policy
   . scripts/dev-env.sh && uv run cmake --preset ci && uv run cmake --build --preset ci && uv run ctest --preset ci
 
 # === Containerized CI (podman by default) ===
