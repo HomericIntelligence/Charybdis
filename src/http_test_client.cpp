@@ -120,8 +120,16 @@ struct HttpTestClient::CircuitBreaker {
 
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 HttpTestClient::HttpTestClient(const std::string& base_url, RetryPolicy retry,
-                               CircuitBreakerConfig breaker_cfg)
-    : retry_(retry), cb_(std::make_unique<CircuitBreaker>(breaker_cfg)) {
+                               CircuitBreakerConfig breaker_cfg, TimeoutConfig timeouts)
+    : retry_(retry), timeouts_(timeouts), cb_(std::make_unique<CircuitBreaker>(breaker_cfg)) {
+  if (timeouts_.connection_timeout_sec < 0) {
+    throw std::runtime_error("HttpTestClient: connection_timeout_sec must be >= 0, got " +
+                             std::to_string(timeouts_.connection_timeout_sec));
+  }
+  if (timeouts_.read_timeout_sec < 0) {
+    throw std::runtime_error("HttpTestClient: read_timeout_sec must be >= 0, got " +
+                             std::to_string(timeouts_.read_timeout_sec));
+  }
   // Parse "http://host:port" into host and port
   const std::regex url_re(R"(https?://([^:]+):(\d+))");
   // NOLINTNEXTLINE(misc-const-correctness) — mutated as regex_match output parameter
@@ -148,8 +156,8 @@ HttpTestClient::HttpTestClient(const std::string& base_url, RetryPolicy retry,
     port_ = 8080;
   }
   client_ = std::make_unique<httplib::Client>(host_, port_);
-  client_->set_connection_timeout(kConnectionTimeoutSec);
-  client_->set_read_timeout(kReadTimeoutSec);
+  client_->set_connection_timeout(timeouts_.connection_timeout_sec);
+  client_->set_read_timeout(timeouts_.read_timeout_sec);
 }
 
 HttpTestClient::~HttpTestClient() = default;
