@@ -56,13 +56,17 @@ def _find_step(uses_prefix: str) -> dict[str, Any]:
         uses = step.get("uses", "")
         if isinstance(uses, str) and uses.startswith(uses_prefix):
             return step
-    raise AssertionError(f"no step using '{uses_prefix}*' found in '{CONTAINER_JOB_ID}'")
+    raise AssertionError(
+        f"no step using '{uses_prefix}*' found in '{CONTAINER_JOB_ID}'"
+    )
 
 
 def _with(step: dict[str, Any]) -> dict[str, Any]:
     """Return a step's `with:` block as a dict."""
     with_block = step.get("with")
-    assert isinstance(with_block, dict), f"step {step.get('name')!r} lacks a with: block"
+    assert isinstance(with_block, dict), (
+        f"step {step.get('name')!r} lacks a with: block"
+    )
     return with_block
 
 
@@ -71,12 +75,16 @@ class ContainerAttestationTests(unittest.TestCase):
 
     def test_container_job_has_id_token_and_attestations_write(self) -> None:
         perms = _container_job()["permissions"]
-        self.assertEqual(perms.get("id-token"), "write",
-                         "build-container must declare 'id-token: write' for "
-                         "sigstore OIDC signing")
-        self.assertEqual(perms.get("attestations"), "write",
-                         "build-container must declare 'attestations: write' "
-                         "to store attestations")
+        self.assertEqual(
+            perms.get("id-token"),
+            "write",
+            "build-container must declare 'id-token: write' for sigstore OIDC signing",
+        )
+        self.assertEqual(
+            perms.get("attestations"),
+            "write",
+            "build-container must declare 'attestations: write' to store attestations",
+        )
 
     def test_multi_arch_push_step_is_id_push_with_push_true(self) -> None:
         candidates = [
@@ -91,20 +99,29 @@ class ContainerAttestationTests(unittest.TestCase):
             "step with 'push: true'"
         )
         step = candidates[0]
-        self.assertEqual(step.get("id"), "push",
-                         "the multi-arch push step must have 'id: push' so its "
-                         "digest output is addressable")
+        self.assertEqual(
+            step.get("id"),
+            "push",
+            "the multi-arch push step must have 'id: push' so its "
+            "digest output is addressable",
+        )
 
     def test_build_provenance_attests_pushed_digest(self) -> None:
         with_block = _with(_find_step("actions/attest-build-provenance@"))
         self.assertEqual(with_block.get("subject-name"), SUBJECT_NAME)
-        self.assertEqual(with_block.get("subject-digest"), DIGEST_EXPR,
-                         "provenance must bind the pushed manifest-list digest "
-                         "(steps.push.outputs.digest)")
-        self.assertIs(with_block.get("push-to-registry"), True,
-                      "push-to-registry must be true so the attestation is "
-                      "attached to the GHCR image and visible to "
-                      "'gh attestation verify oci://...'")
+        self.assertEqual(
+            with_block.get("subject-digest"),
+            DIGEST_EXPR,
+            "provenance must bind the pushed manifest-list digest "
+            "(steps.push.outputs.digest)",
+        )
+        self.assertIs(
+            with_block.get("push-to-registry"),
+            True,
+            "push-to-registry must be true so the attestation is "
+            "attached to the GHCR image and visible to "
+            "'gh attestation verify oci://...'",
+        )
 
     def test_sbom_step_generates_spdx_json_file(self) -> None:
         step = _find_step("anchore/sbom-action@")
@@ -112,22 +129,28 @@ class ContainerAttestationTests(unittest.TestCase):
         self.assertEqual(with_block.get("format"), "spdx-json")
         output_file = with_block.get("output-file")
         assert isinstance(output_file, str)
-        self.assertTrue(output_file.endswith(".spdx.json"),
-                        f"SBOM output-file must be an SPDX JSON path, got {output_file!r}")
+        self.assertTrue(
+            output_file.endswith(".spdx.json"),
+            f"SBOM output-file must be an SPDX JSON path, got {output_file!r}",
+        )
 
     def test_sbom_attestation_binds_same_digest_and_sbom_file(self) -> None:
         attest_with = _with(_find_step("actions/attest-sbom@"))
         sbom_with = _with(_find_step("anchore/sbom-action@"))
         self.assertEqual(attest_with.get("subject-name"), SUBJECT_NAME)
         self.assertEqual(attest_with.get("subject-digest"), DIGEST_EXPR)
-        self.assertEqual(attest_with.get("sbom-file-path"),
-                         sbom_with.get("output-file"),
-                         "attest-sbom must consume exactly the file the SBOM "
-                         "step wrote")
-        self.assertIs(attest_with.get("push-to-registry"), True,
-                      "push-to-registry must be true so the SBOM attestation "
-                      "is attached to the GHCR image and visible to "
-                      "'gh attestation verify oci://...'")
+        self.assertEqual(
+            attest_with.get("sbom-file-path"),
+            sbom_with.get("output-file"),
+            "attest-sbom must consume exactly the file the SBOM step wrote",
+        )
+        self.assertIs(
+            attest_with.get("push-to-registry"),
+            True,
+            "push-to-registry must be true so the SBOM attestation "
+            "is attached to the GHCR image and visible to "
+            "'gh attestation verify oci://...'",
+        )
 
     def test_every_release_workflow_action_ref_is_sha_pinned(self) -> None:
         unpinned: list[str] = []
@@ -145,9 +168,12 @@ class ContainerAttestationTests(unittest.TestCase):
                 comment.startswith("v")
             ):
                 unpinned.append(f"{RELEASE_WORKFLOW_PATH.name}:{index}: {stripped}")
-        self.assertEqual(unpinned, [],
-                         "every release.yml uses: must be pinned to a 40-char "
-                         "SHA with a '# v<tag>' comment")
+        self.assertEqual(
+            unpinned,
+            [],
+            "every release.yml uses: must be pinned to a 40-char "
+            "SHA with a '# v<tag>' comment",
+        )
 
 
 def main() -> int:
