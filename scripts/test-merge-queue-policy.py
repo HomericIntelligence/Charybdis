@@ -367,6 +367,24 @@ class MergeQueuePolicyTests(unittest.TestCase):
             r"(?ms)^    permissions:\n      contents: read\n      packages: write$",
         )
 
+    def test_secrets_scan_job_grants_security_events_write_for_sarif_upload(
+        self,
+    ) -> None:
+        workflow = WORKFLOWS_DIR / "_required.yml"
+        workflow_text = workflow.read_text()
+
+        # No workflow-level security-events grant — least privilege is scoped
+        # to the one job that uploads SARIF.
+        self.assertNotIn(
+            "security-events: write", workflow_text[: workflow_text.index("jobs:")]
+        )
+        secrets_scan = _job_section(workflow, "security-secrets-scan")
+        self.assertIn("Upload Gitleaks SARIF", secrets_scan)
+        self.assertRegex(
+            secrets_scan,
+            r"(?ms)^    permissions:\n      contents: read\n      security-events: write$",
+        )
+
     def test_required_proxy_workflow_does_not_emit_fan_in_contexts(self) -> None:
         required_workflow = WORKFLOWS_DIR / "_required.yml"
         required_contexts = set(EXPECTED_FAN_IN_EMITTERS)
