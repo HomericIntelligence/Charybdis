@@ -16,6 +16,7 @@ jobs:
     name: Docker Build
     permissions:
       contents: read
+      actions: read
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -34,7 +35,14 @@ jobs:
         run: |
           if [ -d "$HOME/.conan2" ]; then
             tar -czf "$RUNNER_TEMP/conan-cache.tgz" -C "$HOME" .conan2
-            echo "cache-archive=$RUNNER_TEMP/conan-cache.tgz" >> "$GITHUB_OUTPUT"
+            size=$(stat -c%s "$RUNNER_TEMP/conan-cache.tgz" 2>/dev/null || stat -f%z "$RUNNER_TEMP/conan-cache.tgz" 2>/dev/null || echo 0)
+            if [ "$size" -lt 512000 ]; then
+              echo "cache-archive=$RUNNER_TEMP/conan-cache.tgz" >> "$GITHUB_OUTPUT"
+              echo "Conan cache archive $size bytes, will hydrate via secret."
+            else
+              echo "Conan cache archive $size bytes exceeds 500KiB BuildKit secret limit, skipping hydration."
+              rm -f "$RUNNER_TEMP/conan-cache.tgz"
+            fi
           else
             echo "No Conan store on runner; building without cache hydration."
           fi
@@ -67,7 +75,7 @@ jobs:
           load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          secrets: ${{ steps.conan-pack.outputs.cache-archive != '' && format('conan_cache={0}', steps.conan-pack.outputs.cache-archive) || '' }}
+          secret-files: ${{ steps.conan-pack.outputs.cache-archive != '' && format('conan_cache={0}', steps.conan-pack.outputs.cache-archive) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -95,7 +103,48 @@ jobs:
         id: conan-extract
         run: |
           TAG=$(printf '%s\n' "${{ steps.meta.outputs.tags }}" | head -n1)
-          cid=$(docker create "$TAG")
+          # The loaded image is the runtime stage and does not contain the
+          # builder's Conan store. Try extracting from the runtime first; if
+          # that fails, rebuild the builder stage (hitting BuildKit cache) and
+          # extract from there.
+          cid=""
+          if ! cid=$(docker create "$TAG" 2>/dev/null); then
+            cid=""
+          fi
+          mkdir -p "$HOME/.conan2-hydrated"
+          if [ -n "$cid" ] && docker cp "$cid":/home/builder/.conan2/. "$HOME/.conan2-hydrated/" 2>/dev/null; then
+            echo "Extracted Conan cache from runtime image"
+            if ! docker rm "$cid" >/dev/null 2>&1; then
+              :
+            fi
+            mkdir -p "$HOME/.conan2"
+            cp -a "$HOME/.conan2-hydrated/." "$HOME/.conan2/"
+            exit 0
+          fi
+          if [ -n "$cid" ]; then
+            if ! docker rm "$cid" >/dev/null 2>&1; then
+              :
+            fi
+          fi
+          echo "Runtime image has no builder Conan cache; building builder stage for extraction..."
+          ARCHIVE="${{ steps.conan-pack.outputs.cache-archive }}"
+          if [ -n "$ARCHIVE" ] && [ -f "$ARCHIVE" ]; then
+            docker buildx build \
+              --target builder \
+              --secret id=conan_cache,src="$ARCHIVE" \
+              --cache-from type=gha \
+              --tag conan-extract:builder \
+              --load \
+              .
+          else
+            docker buildx build \
+              --target builder \
+              --cache-from type=gha \
+              --tag conan-extract:builder \
+              --load \
+              .
+          fi
+          cid=$(docker create conan-extract:builder)
           mkdir -p "$HOME/.conan2-hydrated"
           docker cp "$cid":/home/builder/.conan2/. "$HOME/.conan2-hydrated/"
           docker rm "$cid"
@@ -103,11 +152,23 @@ jobs:
           cp -a "$HOME/.conan2-hydrated/." "$HOME/.conan2/"
 
       - name: Save Conan package cache
-        if: steps.conan-extract.outcome == 'success'
+        if: steps.conan-extract.outcome == 'success' && steps.conan-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ~/.conan2
-          key: conan-docker-${{ runner.os }}-${{ hashFiles('conanfile.py', 'conan.lock', 'conan/profiles/default', 'conan/profiles/debug') }}-run-${{ github.run_id }}
+          key: conan-docker-${{ runner.os }}-${{ hashFiles('conanfile.py', 'conan.lock', 'conan/profiles/default', 'conan/profiles/debug') }}
+
+      - name: Assert cache hydration engaged
+        if: steps.conan-cache.outputs.cache-hit == 'true' && steps.conan-pack.outputs.cache-archive != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --log 2>/dev/null | grep -q "HYDRATED from secret"; then
+            echo "Conan cache hydration confirmed in build log."
+          else
+            echo "::error::Conan cache was restored but the build log shows no HYDRATED marker"
+            exit 1
+          fi
 
   publish:
     name: Publish Container on main
@@ -133,7 +194,14 @@ jobs:
         run: |
           if [ -d "$HOME/.conan2" ]; then
             tar -czf "$RUNNER_TEMP/conan-cache.tgz" -C "$HOME" .conan2
-            echo "cache-archive=$RUNNER_TEMP/conan-cache.tgz" >> "$GITHUB_OUTPUT"
+            size=$(stat -c%s "$RUNNER_TEMP/conan-cache.tgz" 2>/dev/null || stat -f%z "$RUNNER_TEMP/conan-cache.tgz" 2>/dev/null || echo 0)
+            if [ "$size" -lt 512000 ]; then
+              echo "cache-archive=$RUNNER_TEMP/conan-cache.tgz" >> "$GITHUB_OUTPUT"
+              echo "Conan cache archive $size bytes, will hydrate via secret."
+            else
+              echo "Conan cache archive $size bytes exceeds 500KiB BuildKit secret limit, skipping hydration."
+              rm -f "$RUNNER_TEMP/conan-cache.tgz"
+            fi
           else
             echo "No Conan store on runner; building without cache hydration."
           fi
@@ -164,7 +232,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          secrets: ${{ steps.conan-pack.outputs.cache-archive != '' && format('conan_cache={0}', steps.conan-pack.outputs.cache-archive) || '' }}
+          secret-files: ${{ steps.conan-pack.outputs.cache-archive != '' && format('conan_cache={0}', steps.conan-pack.outputs.cache-archive) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
