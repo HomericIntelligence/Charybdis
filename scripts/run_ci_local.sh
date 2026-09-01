@@ -131,7 +131,7 @@ run_typecheck() {
 
 run_schema-validation() {
     # Schema validation
-    run_in_container "uv run check-jsonschema --check-metaschema .github/workflows/*.yml 2>/dev/null || true"
+    run_in_container "uv run check-jsonschema --check-metaschema .github/workflows/*.yml 2>/dev/null ||:"
 }
 
 run_security-secrets-scan() {

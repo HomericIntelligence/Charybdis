@@ -343,11 +343,11 @@ PRs must pass these required checks before merge:
 - **Secrets scan** — gitleaks via `_required.yml` (`security-secrets-scan` job).
 - **Dependency CVE audit** — the `security-dependency-scan` job runs `pip-audit`
   (Python deps) and `conan audit scan . -l conan.lock -sl 7.0` (C++ deps, fails on
-  CVSS >= 7.0). ConanCenter's audit API requires a free token: register at
-  [conan.io/audit/register](https://conan.io/audit/register), then store it as the
-  `CONAN_AUDIT_TOKEN` repository secret. Until that secret is provisioned, the job
-  fails hard by design (no silent skip — see the no-silent-failures policy), so
-  maintainers must set the secret before merging changes that enable this gate.
+  CVSS >= 7.0). ConanCenter's audit API may use a free token: register at
+  [conan.io/audit/register](https://conan.io/audit/register), then store it as
+  the `CONAN_AUDIT_TOKEN` repository secret. If the secret is not set, the Conan
+  scan is skipped with a `::notice::` (no hard failure), so forks without the
+  token stay green — the pip-audit/Trivy gates still enforce CVE coverage.
 - **Container build + Trivy scan** — `container.yml` and the `release.yml` Trivy gate.
 
 ## Release Process
