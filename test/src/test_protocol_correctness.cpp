@@ -13,6 +13,7 @@
 #include <nlohmann/json.hpp>
 #include <set>
 #include <string>
+#include <tuple>
 
 #include <gtest/gtest.h>
 

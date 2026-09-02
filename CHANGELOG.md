@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
-- Container release images now carry supply-chain attestations (#108): the
-  release workflow generates an SPDX-JSON SBOM (`anchore/sbom-action`) and
-  publishes signed SLSA build-provenance and SBOM attestations
-  (`actions/attest-build-provenance`, `actions/attest-sbom`) bound to the
-  pushed image digest, verifiable via `gh attestation verify`.
+- `chore(iwyu)`: add missing explicit `#include` directives surfaced by an
+  include-what-you-use audit of all `src/` and `test/src` translation units
+  and the public headers (`<cstddef>` in `http_test_client.hpp`,
+  `<string_view>` in `main.cpp`, `<memory>`/`<system_error>`/`<tuple>` in test
+  sources) so no code relies on transitive standard-library inclusion (#183).
 
 ### Changed
 
