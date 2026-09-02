@@ -11,8 +11,8 @@ on:
   push:
     branches: [main]
 
-  merge_group:
-    types: [checks_requested]
+permissions:
+  contents: read
 
 # No concurrency cancellation for workflow_run events — they must always
 # report a result so the branch ruleset check contexts are populated.
@@ -202,6 +202,8 @@ jobs:
     name: security/secrets-scan
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # upload-sarif (below) requires security-events: write; everything else
+    # in this job only needs the workflow-level contents: read default.
     permissions:
       contents: read
       security-events: write
