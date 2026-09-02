@@ -325,6 +325,11 @@ jobs:
         run: pip3 install --user conan
       - name: Configure Conan profile
         run: conan profile detect --force
+      # The committed lockfile is generated exclusively from the canonical
+      # GCC-14/Debug profile (scripts/lock.sh). Conan 2.x lockfiles pin recipe
+      # revisions — not binary packages — so this same lockfile must resolve
+      # identically under Clang settings. Do not commit a Clang-generated
+      # lockfile.
       - name: Regenerate lockfile
         run: |
           conan lock create . \
@@ -342,6 +347,33 @@ jobs:
             exit 1
           fi
           echo "conan.lock is up-to-date"
+      # Recipe revisions are compiler-agnostic, so re-resolving the graph under
+      # Clang-18 settings must reproduce the committed GCC-generated lockfile
+      # byte-for-byte. A drift here means a recipe revision changed upstream or
+      # someone committed a compiler-specific lockfile.
+      - name: Verify lockfile is compiler-agnostic (Clang)
+        run: |
+          conan lock create . \
+            --lockfile=conan.lock \
+            --lockfile-out=/tmp/clang.lock \
+            -s compiler=clang \
+            -s compiler.version=18 \
+            -s compiler.libcxx=libstdc++11 \
+            -s compiler.cppstd=20 \
+            -s build_type=Debug \
+            -s os=Linux \
+            -s arch=x86_64
+          if ! git diff --exit-code conan.lock; then
+            echo "ERROR: re-resolving under Clang modified conan.lock."
+            exit 1
+          fi
+          if ! diff -u conan.lock /tmp/clang.lock; then
+            echo "ERROR: conan.lock does not resolve identically under Clang-18 settings."
+            echo "The committed lockfile must be regenerated with scripts/lock.sh"
+            echo "(canonical GCC-14/Debug profile) and resolve identically across compilers."
+            exit 1
+          fi
+          echo "conan.lock resolves identically under GCC-14 and Clang-18 settings"
 
   # Canonical `install` check for the Odysseus ecosystem board. Builds the
   # release artifact, runs `cmake --install` into a staging prefix, and smoke-

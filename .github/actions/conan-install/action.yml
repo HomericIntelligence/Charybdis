@@ -46,7 +46,11 @@ runs:
         BUILD_TYPE_CAP=$(echo "${BUILD_TYPE}" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
         FOLDER="${OUTPUT_FOLDER:-build/${BUILD_TYPE}}"
         if [ "${COMPILER}" = "clang" ]; then
-          CC=clang CXX=clang++ uv run conan install . \
+          # The shared conan.lock is recipe-revision-level (Conan 2.x graph
+          # lockfile) and is intentionally consumed by both the gcc and clang
+          # matrix legs. Regenerate it only via scripts/lock.sh, which uses the
+          # canonical GCC-14/Debug profile.
+          CC=clang CXX=clang++ conan install . \
             --output-folder="${FOLDER}" \
             --build=missing \
             --lockfile=conan.lock \
@@ -56,7 +60,9 @@ runs:
             -s compiler.libcxx=libstdc++11 \
             -s compiler.cppstd="${CPPSTD}"
         else
-          uv run conan install . \
+          # Same shared lockfile as the clang branch above; regenerate only via
+          # scripts/lock.sh.
+          conan install . \
             --output-folder="${FOLDER}" \
             --build=missing \
             --lockfile=conan.lock \
