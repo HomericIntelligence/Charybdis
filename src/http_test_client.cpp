@@ -17,15 +17,74 @@ namespace charybdis {
 
 namespace {
 
-nlohmann::json parse_body(const httplib::Response& res) {
-  if (res.body.size() > HttpTestClient::kMaxBodyBytes) {
+/// Outcome of one wire attempt. `transient == true` means no usable reply
+/// (connection-level failure) — the retry envelope may try again. A size
+/// abort is a concrete server reply and is never transient.
+struct WireResult {
+  bool transient{false};
+  bool too_large{false};
+  int status{0};
+  std::string body;
+};
+
+nlohmann::json parse_body(const WireResult& wire) {
+  if (wire.too_large) {
     return {{"error", "response_too_large"}};
   }
   try {
-    return nlohmann::json::parse(res.body);
+    return nlohmann::json::parse(wire.body);
   } catch (...) {
-    return {{"raw", res.body}};
+    return {{"raw", wire.body}};
   }
+}
+
+/// Perform `method path` with a streaming body cap. The content receiver
+/// aborts the download once the cumulative byte count would exceed
+/// `HttpTestClient::kMaxBodyBytes`, so at most the cap plus one receive
+/// chunk is ever buffered (issue #140). A declared `Content-Length` above
+/// the cap aborts before the body is read at all.
+WireResult stream_request(httplib::Client& client, const std::string& method,
+                          const std::string& path, const std::string& body,
+                          const std::string& content_type) {
+  httplib::Request req;
+  req.method = method;
+  req.path = path;
+  if (!body.empty()) {
+    req.body = body;
+    req.set_header("Content-Type", content_type);
+  }
+
+  WireResult out;
+  req.response_handler = [&out](const httplib::Response& res) {
+    if (res.has_header("Content-Length") &&
+        res.get_header_value_u64("Content-Length") > HttpTestClient::kMaxBodyBytes) {
+      out.too_large = true;
+      return false;  // abort before reading any body bytes
+    }
+    return true;
+  };
+  req.content_receiver = [&out](const char* data, size_t len, uint64_t /*offset*/,
+                                uint64_t /*total*/) {
+    if (out.body.size() + len > HttpTestClient::kMaxBodyBytes) {
+      out.too_large = true;
+      return false;  // httplib reports Error::Canceled and tears down the transfer
+    }
+    out.body.append(data, len);
+    return true;
+  };
+
+  httplib::Response res;
+  auto err = httplib::Error::Success;
+  const bool ok = client.send(req, res, err);
+  out.status = res.status > 0 ? res.status : 0;
+  // A size abort surfaces as !ok / Error::Canceled but the status line was
+  // already parsed — it is a definitive reply, not a transient failure.
+  out.transient = !ok && !out.too_large;
+  if (out.too_large) {
+    out.body.clear();  // release whatever was buffered before the abort
+  }
+  (void)err;
+  return out;
 }
 
 /// Thread-local jitter source. Avoids per-call construction of a Mersenne
@@ -163,11 +222,11 @@ HttpTestClient::HttpTestClient(const std::string& base_url, RetryPolicy retry,
 HttpTestClient::~HttpTestClient() = default;
 
 /// Apply the retry-with-backoff envelope around an httplib call.
-/// `func` must be invocable and return an `httplib::Result`. A `nullptr`-like
-/// result (status 0) is the transient signal that triggers retry. Any
-/// concrete response — including 4xx/5xx — is returned to the caller
-/// unchanged. Defined as a private static member so it can refer to the
-/// private `CircuitBreaker` type.
+/// `func` must be invocable and return a `WireResult`. A `transient` result
+/// (connection-level failure) is the signal that triggers retry. Any
+/// concrete response — including 4xx/5xx and size aborts — is returned to
+/// the caller unchanged. Defined as a private static member so it can refer
+/// to the private `CircuitBreaker` type.
 template <typename Fn>
 HttpTestClient::Response HttpTestClient::run_with_retry(const RetryPolicy& policy,
                                                         CircuitBreaker& breaker, Fn func) {
@@ -178,10 +237,10 @@ HttpTestClient::Response HttpTestClient::run_with_retry(const RetryPolicy& polic
       return {0, {}};
     }
 
-    auto res = func();
-    if (res) {
+    auto wire = func();
+    if (!wire.transient) {
       breaker.record_success();
-      return {res->status, parse_body(*res)};
+      return {wire.status, parse_body(wire)};
     }
 
     breaker.record_failure();
@@ -203,7 +262,8 @@ HttpTestClient::Response HttpTestClient::run_with_retry(const RetryPolicy& polic
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 HttpTestClient::Response HttpTestClient::get(const std::string& path) {
-  return run_with_retry(retry_, *cb_, [&] { return client_->Get(path); });
+  return run_with_retry(retry_, *cb_,
+                        [&] { return stream_request(*client_, "GET", path, {}, {}); });
 }
 
 HttpTestClient::Response HttpTestClient::post(const std::string& path, const nlohmann::json& body) {
@@ -212,13 +272,15 @@ HttpTestClient::Response HttpTestClient::post(const std::string& path, const nlo
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 HttpTestClient::Response HttpTestClient::del(const std::string& path) {
-  return run_with_retry(retry_, *cb_, [&] { return client_->Delete(path); });
+  return run_with_retry(retry_, *cb_,
+                        [&] { return stream_request(*client_, "DELETE", path, {}, {}); });
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters,readability-convert-member-functions-to-static)
 HttpTestClient::Response HttpTestClient::post_raw(const std::string& path, const std::string& body,
                                                   const std::string& content_type) {
-  return run_with_retry(retry_, *cb_, [&] { return client_->Post(path, body, content_type); });
+  return run_with_retry(retry_, *cb_,
+                        [&] { return stream_request(*client_, "POST", path, body, content_type); });
 }
 
 bool HttpTestClient::is_healthy() {

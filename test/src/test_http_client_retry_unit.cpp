@@ -116,6 +116,75 @@ class HealthyServer {
 
 }  // namespace
 
+// ── Oversized response is a definitive reply, not transient (issue #140) ─────
+
+namespace {
+
+/// Serves a declared-Content-Length body of kMaxBodyBytes + 1 bytes and
+/// counts hits, mirroring the HealthyServer pattern above.
+class OversizedServer {
+ public:
+  OversizedServer() {
+    port_ = svr_.bind_to_any_port("127.0.0.1");
+    svr_.Get("/v1/oversized", [this](const httplib::Request& /*req*/, httplib::Response& res) {
+      ++hits_;
+      const std::string big(HttpTestClient::kMaxBodyBytes + 1, 'x');
+      res.set_content(big, "text/plain");
+    });
+    thread_ = std::thread([this]() { svr_.listen_after_bind(); });
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{5};
+    while (!svr_.is_running()) {
+      if (std::chrono::steady_clock::now() > deadline) {
+        throw std::runtime_error("OversizedServer failed to start");
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds{5});
+    }
+  }
+  ~OversizedServer() {
+    svr_.stop();
+    if (thread_.joinable()) {
+      thread_.join();
+    }
+  }
+  OversizedServer(const OversizedServer&) = delete;
+  OversizedServer& operator=(const OversizedServer&) = delete;
+  OversizedServer(OversizedServer&&) = delete;
+  OversizedServer& operator=(OversizedServer&&) = delete;
+
+  [[nodiscard]] int port() const { return port_; }
+  [[nodiscard]] int hits() const { return hits_.load(); }
+
+ private:
+  httplib::Server svr_;
+  int port_{0};
+  std::atomic<int> hits_{0};
+  std::thread thread_;
+};
+
+}  // namespace
+
+TEST(HttpTestClientRetryUnit, OversizedResponseIsNotRetried) {
+  // A size-aborted download is a definitive server reply, not a transient
+  // failure: it must consume exactly one wire call even with retries armed.
+  const OversizedServer mock;
+  const RetryPolicy retry{.max_retries = 3, .base_delay_ms = 10};
+  HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), retry, {});
+  auto [status, body] = client.get("/v1/oversized");
+  EXPECT_EQ(status, 200);
+  EXPECT_EQ(body.value("error", ""), "response_too_large");
+  EXPECT_EQ(mock.hits(), 1);
+}
+
+TEST(HttpTestClientRetryUnit, OversizedResponseDoesNotTripBreaker) {
+  const OversizedServer mock;
+  HttpTestClient client("http://127.0.0.1:" + std::to_string(mock.port()), RetryPolicy{},
+                        CircuitBreakerConfig{.failure_threshold = 1});
+  auto [status, body] = client.get("/v1/oversized");
+  (void)status;
+  EXPECT_EQ(body.value("error", ""), "response_too_large");
+  EXPECT_EQ(client.test_breaker_state(), HttpTestClient::BreakerState::kClosed);
+}
+
 TEST(HttpTestClientRetryUnit, SuccessOnFirstAttemptNoRetry) {
   const HealthyServer mock;
   const RetryPolicy retry{.max_retries = 5, .base_delay_ms = 1};
