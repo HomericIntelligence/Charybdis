@@ -94,7 +94,7 @@ Post-release work that raises quality from functional to production-grade.
 - [ ] #68 Fix `gitleaks || true` — secrets scan must be able to fail CI
 - [ ] #69 Pin Trivy action to a SHA instead of a mutable tag
 - [ ] #70 Add `.trivyignore` with documented suppressions policy
-- [ ] #71 Fix Conan audit `|| true` swallowing all errors
+- [x] #71 Fix Conan audit `|| true` swallowing all errors (#221 removed the broken step)
 
 ### Developer experience
 
