@@ -10,4 +10,8 @@ constexpr int kVersionMajor{@PROJECT_VERSION_MAJOR@};
 constexpr int kVersionMinor{@PROJECT_VERSION_MINOR@};
 constexpr int kVersionPatch{@PROJECT_VERSION_PATCH@};
 
+/// Issue #179: build-time default subject prefix enforced on queue-starve
+/// chaos targets. Overridable at runtime via `CHARYBDIS_SUBJECT_PREFIX`.
+constexpr std::string_view kDefaultSubjectPrefix{"@CHARYBDIS_SUBJECT_PREFIX_DEFAULT@"};
+
 }  // namespace charybdis

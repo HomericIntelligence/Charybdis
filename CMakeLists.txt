@@ -22,6 +22,13 @@ include(cmake/Sanitizers.cmake)
 include(cmake/Doxygen.cmake)
 include(cmake/SourcesAndHeaders.cmake)
 
+# Issue #179: default NATS subject prefix enforced on queue-starve chaos
+# targets. Operators can override the build-time default; runtime override is
+# via CHARYBDIS_SUBJECT_PREFIX (see include/charybdis/subject_filter.hpp).
+set(CHARYBDIS_SUBJECT_PREFIX_DEFAULT "hi.test."
+    CACHE STRING
+          "Default NATS subject prefix enforced on queue-starve chaos targets")
+
 configure_file(
   include/charybdis/version.hpp.in
   ${PROJECT_BINARY_DIR}/include/charybdis/version.hpp

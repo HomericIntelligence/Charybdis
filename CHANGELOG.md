@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   publishes signed SLSA build-provenance and SBOM attestations
   (`actions/attest-build-provenance`, `actions/attest-sbom`) bound to the
   pushed image digest, verifiable via `gh attestation verify`.
+- `feat(security)`: machine-enforced NATS subject-prefix filter for queue-starve chaos
+  targets (default `hi.test.`, overridable via `CHARYBDIS_SUBJECT_PREFIX`; disable with
+  `CHARYBDIS_SUBJECT_FILTER_DISABLED=1`). Rejections fail fast before any HTTP call and
+  are recorded as `action: "filter_reject"` audit records (issue #179, follow-up from #32).
 
 ### Changed
 

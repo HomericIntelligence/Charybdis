@@ -7,6 +7,7 @@
 
 #include "charybdis/chaos_audit.hpp"
 #include "charybdis/http_test_client.hpp"
+#include "charybdis/safe_chaos.hpp"
 #include "charybdis/test_helpers.hpp"
 
 #include <algorithm>
@@ -102,9 +103,12 @@ TEST_F(ChaosApiTest, E03InjectKill) {
 }
 
 // E04: Remove fault
+//
+// Issue #179: the queue-starve injection goes through the subject-filter
+// guard, so a non-test subject would fail fast before reaching Agamemnon.
 TEST_F(ChaosApiTest, E04RemoveFault) {
-  auto [status, body] = inject("queue-starve");
-  ASSERT_GE(status, 200);
+  const auto body = safe_inject_queue_starve(*client_, *audit_, "hi.test.queue-starve.e04");
+  ASSERT_TRUE(body.contains("id")) << "Fault response missing 'id' field";
   const std::string fault_id = body.value("id", "");
   ASSERT_FALSE(fault_id.empty());
 

@@ -6,7 +6,9 @@
  * Requires: Agamemnon running at AGAMEMNON_URL (default http://localhost:8080)
  */
 
+#include "charybdis/chaos_audit.hpp"
 #include "charybdis/http_test_client.hpp"
+#include "charybdis/safe_chaos.hpp"
 #include "charybdis/test_helpers.hpp"
 
 #include <algorithm>
@@ -28,6 +30,7 @@ class ChaosResilienceTest : public ::testing::Test {
     // issue #80: kill-fault injection (R03) requires a retry budget — the
     // default policy returns status==0 on the first post-kill request.
     client_ = std::make_unique<HttpTestClient>(agamemnon_url(), kChaosResilientPolicy);
+    audit_ = std::make_unique<ChaosAuditLog>();
     // NOLINTNEXTLINE(readability-implicit-bool-conversion)
     if (!client_->is_healthy()) {
       GTEST_SKIP() << "Agamemnon not reachable at " << agamemnon_url();
@@ -77,7 +80,11 @@ class ChaosResilienceTest : public ::testing::Test {
     });
   }
 
+  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::unique_ptr<HttpTestClient> client_;
+  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
+  std::unique_ptr<ChaosAuditLog> audit_;
+  // NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes,misc-non-private-member-variables-in-classes)
   std::vector<std::string> injected_ids_;
 };
 
@@ -185,9 +192,13 @@ TEST_F(ChaosResilienceTest, R03KillServiceHealthDegrades) {
 //   Skip in CI with: ctest --label-exclude REQUIRES_MYRMIDON
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_F(ChaosResilienceTest, R04QueueStarveConsumerStalls) {
-  const auto fault = inject("/v1/chaos/queue-starve");
+  // Issue #179: the queue-starve injection goes through the subject-filter
+  // guard with a test-namespaced subject (hi.test.*). The safe wrapper does
+  // not track ids itself, so register the fault for TearDown cleanup here.
+  const auto fault = safe_inject_queue_starve(*client_, *audit_, "hi.test.r04." + random_suffix());
   const std::string fault_id = fault.value("id", "");
   ASSERT_FALSE(fault_id.empty());
+  injected_ids_.push_back(fault_id);
   ASSERT_EQ(fault.value("type", ""), "queue-starve");
 
   // Create a team and agent to submit a task through
