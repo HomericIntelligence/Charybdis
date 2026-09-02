@@ -11,7 +11,9 @@ on:
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: true
+  # Publishers are non-idempotent: a run awaiting environment approval or
+  # mid-publish must queue, never be cancelled by a newer run (#106).
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -167,6 +169,9 @@ jobs:
     name: Build and push container
     runs-on: ubuntu-24.04
     needs: build-release-binary
+    # GHCR publish gated behind manual approval of the 'release'
+    # environment (#106).
+    environment: release
     permissions:
       contents: read
       packages: write
@@ -232,6 +237,9 @@ jobs:
     name: Publish GitHub Release
     runs-on: ubuntu-24.04
     needs: [build-release-binary, build-container]
+    # GitHub Release creation gated behind manual approval of the 'release'
+    # environment (#106).
+    environment: release
     permissions:
       contents: write
     steps:
