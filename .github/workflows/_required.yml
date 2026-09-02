@@ -295,7 +295,21 @@ jobs:
     name: typecheck
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    needs: [lockfile-integrity]
+    # always() preserves the current workflow_run fan-in behaviour, where
+    # lockfile-integrity is skipped by its own event guard — without it a
+    # skipped dependency would silently skip typecheck on those events.
+    if: always()
     steps:
+      - name: Abort if lockfile gate failed
+        if: >-
+          needs.lockfile-integrity.result == 'failure' ||
+          needs.lockfile-integrity.result == 'cancelled'
+        run: |
+          echo "ERROR: lockfile-integrity failed (result: ${{ needs.lockfile-integrity.result }})."
+          echo "conan.lock is stale — run scripts/lock.sh locally and commit the result."
+          exit 1
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 1
@@ -321,27 +335,8 @@ jobs:
     if: github.event_name != 'workflow_run'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - name: Install Conan
-        run: pip3 install --user conan
-      - name: Configure Conan profile
-        run: conan profile detect --force
-      - name: Regenerate lockfile
-        run: |
-          conan lock create . \
-            -s compiler=gcc \
-            -s compiler.version=14 \
-            -s compiler.libcxx=libstdc++11 \
-            -s compiler.cppstd=20 \
-            -s build_type=Debug \
-            -s os=Linux \
-            -s arch=x86_64
-      - name: Verify lockfile is up-to-date
-        run: |
-          if ! git diff --exit-code conan.lock; then
-            echo "ERROR: conan.lock is out of date. Run scripts/lock.sh locally and commit the result."
-            exit 1
-          fi
-          echo "conan.lock is up-to-date"
+      - name: Verify lockfile integrity
+        uses: ./.github/actions/conan-lock-check
 
   # Canonical `install` check for the Odysseus ecosystem board. Builds the
   # release artifact, runs `cmake --install` into a staging prefix, and smoke-
@@ -351,6 +346,7 @@ jobs:
   install:
     name: install
     runs-on: ubuntu-24.04
+    needs: [lockfile-integrity]
     if: github.event_name != 'workflow_run'
     timeout-minutes: 30
     steps:
