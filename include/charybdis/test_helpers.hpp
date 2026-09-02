@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <exception>
@@ -7,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 namespace charybdis {
 
@@ -84,6 +86,25 @@ bool wait_until(Pred pred, std::chrono::seconds timeout = std::chrono::seconds{3
     std::this_thread::sleep_for(std::chrono::milliseconds{500});
   }
   return false;
+}
+
+/// Check whether any fault in a `GET /v1/chaos` response body carries one of
+/// the given fault IDs.
+///
+/// Mirrors the accessors used throughout the chaos tests:
+/// `body.value("faults", json::array())` + `fault.value("id", "")`. A missing
+/// or non-array `faults` key is treated as "no faults listed".
+///
+/// @param body Parsed JSON body of a `GET /v1/chaos` response.
+/// @param ids Fault IDs owned by the caller (e.g. a test's injected faults).
+/// @return true if at least one listed fault's `"id"` matches any of `ids`.
+inline bool faults_contain_ids(const nlohmann::json& body,
+                               const std::vector<std::string>& ids) {
+  const auto faults = body.value("faults", nlohmann::json::array());
+  return std::ranges::any_of(faults, [&ids](const auto& fault) {
+    const std::string fault_id = fault.value("id", "");
+    return std::ranges::find(ids, fault_id) != ids.end();
+  });
 }
 
 }  // namespace charybdis

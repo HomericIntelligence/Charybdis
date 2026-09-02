@@ -35,10 +35,57 @@ class ChaosResilienceTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    for (const auto& fault_id : injected_ids_) {
+    if (injected_ids_.empty()) {
+      return;
+    }
+
+    // Snapshot our IDs; foreign faults from concurrent runs are intentionally
+    // ignored — we only verify that *our* cleanup converged (issue #97).
+    const std::vector<std::string> ours = injected_ids_;
+    for (const auto& fault_id : ours) {
       std::ignore = client_->del("/v1/chaos/" + fault_id);
     }
     injected_ids_.clear();
+
+    // Poll GET /v1/chaos until none of our IDs remain listed. Re-issue DELETE
+    // for any still-listed ID so the mandatory cleanup is retried while
+    // polling. Non-200 or unreachable responses keep the poll going until the
+    // timeout rather than declaring premature success.
+    constexpr std::chrono::seconds kTeardownTimeout{10};
+    bool last_get_ok = false;
+    nlohmann::json last_body;
+    // NOLINTNEXTLINE(readability-implicit-bool-conversion)
+    const bool cleared = wait_until(
+        [&]() {
+          auto [status, body] = client_->get("/v1/chaos");
+          last_get_ok = status == 200;
+          if (!last_get_ok) {
+            return false;
+          }
+          last_body = body;
+          for (const auto& fault : body.value("faults", nlohmann::json::array())) {
+            const std::string fault_id = fault.value("id", "");
+            if (std::ranges::find(ours, fault_id) != ours.end()) {
+              std::ignore = client_->del("/v1/chaos/" + fault_id);
+            }
+          }
+          return !faults_contain_ids(body, ours);
+        },
+        kTeardownTimeout);
+
+    // Non-fatal: a leak must not abort remaining cleanup, but it must fail the
+    // test so a degraded baseline is never silently inherited by later tests.
+    if (!cleared) {
+      if (!last_get_ok) {
+        ADD_FAILURE() << "TearDown could not verify fault removal — /v1/chaos "
+                      << "unreachable for " << kTeardownTimeout.count() << "s; "
+                      << "tracked fault count: " << ours.size();
+      } else {
+        ADD_FAILURE() << "TearDown: GET /v1/chaos still lists faults from this "
+                      << "test after " << kTeardownTimeout.count()
+                      << "s — leaked fault may corrupt subsequent tests (issue #97)";
+      }
+    }
   }
 
   /// Inject a fault and track its ID for cleanup. Returns the fault response body.
