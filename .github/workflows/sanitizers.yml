@@ -1,5 +1,20 @@
 name: Sanitizers
 
+# ASAN+UBSAN and TSan live in this dedicated workflow (not in
+# build-test.yml's matrix) because:
+#   1. The asan/tsan test presets carry a 600s per-test timeout
+#      (CMakePresets.json); folding them into the build-test matrix
+#      would slow the dominant debug/release PR feedback path.
+#   2. ASAN requires extra apt packages (libasan8, libubsan1) and is
+#      gcc-only — build-test.yml runs gcc AND clang, which would force
+#      awkward matrix include/exclude rules.
+#   3. _required.yml already fans the "Sanitizers" workflow in as a
+#      top-level required check, so separation does not weaken branch
+#      protection.
+#   4. Keeping asan and tsan side-by-side here keeps the runtime-
+#      instrumentation story in one file.
+# See issue #60 (follow-up to #7) for the decision record.
+
 on:
   push:
     branches: [main]
