@@ -58,7 +58,7 @@ target_link_libraries(${PROJECT_NAME}_integration_tests
 #   * .supervisor — additionally needs an external restart supervisor (R03)
 #   * .myrmidon   — additionally needs a live myrmidon pull consumer (R04)
 set(_charybdis_supervisor_filter "ChaosResilienceTest.R03KillServiceHealthDegrades")
-set(_charybdis_myrmidon_filter "ChaosResilienceTest.R04_QueueStarve_ConsumerStalls")
+set(_charybdis_myrmidon_filter "ChaosResilienceTest.R04QueueStarveConsumerStalls")
 
 gtest_discover_tests(${PROJECT_NAME}_integration_tests
     TEST_SUFFIX .nats
@@ -76,7 +76,7 @@ gtest_discover_tests(${PROJECT_NAME}_integration_tests
     EXTRA_ARGS "--gtest_filter=${_charybdis_supervisor_filter}"
     PROPERTIES LABELS "REQUIRES_NATS;REQUIRES_RESTART_SUPERVISOR")
 
-# R04_QueueStarve_ConsumerStalls additionally requires a live myrmidon pull consumer.
+# R04QueueStarveConsumerStalls additionally requires a live myrmidon pull consumer.
 # Without one, the task will never advance to 'completed' and the recovery assertion
 # will always time out. CI environments without a myrmidon agent can skip with:
 #   ctest --label-exclude REQUIRES_MYRMIDON
@@ -84,3 +84,22 @@ gtest_discover_tests(${PROJECT_NAME}_integration_tests
     TEST_SUFFIX .myrmidon
     EXTRA_ARGS "--gtest_filter=${_charybdis_myrmidon_filter}"
     PROPERTIES LABELS "REQUIRES_NATS;REQUIRES_MYRMIDON")
+
+# ── Filter-match guards (offline, always runnable) ───────────────────────────
+# The hardcoded gtest filters above must match ≥1 discovered test name. TEST_F
+# macros inside `namespace charybdis { ... }` register the literal Suite.Test
+# string regardless of the enclosing namespace, but any future rename that
+# desyncs a filter would silently create an empty ctest partition. These guards
+# run `--gtest_list_tests` (no network I/O) and fail if the expected test name
+# is missing. No LABELS property: they run in every preset.
+add_test(NAME test_filter_matches.supervisor
+    COMMAND ${PROJECT_NAME}_integration_tests
+        --gtest_list_tests --gtest_filter=${_charybdis_supervisor_filter})
+set_tests_properties(test_filter_matches.supervisor PROPERTIES
+    PASS_REGULAR_EXPRESSION "R03KillServiceHealthDegrades")
+
+add_test(NAME test_filter_matches.myrmidon
+    COMMAND ${PROJECT_NAME}_integration_tests
+        --gtest_list_tests --gtest_filter=${_charybdis_myrmidon_filter})
+set_tests_properties(test_filter_matches.myrmidon PROPERTIES
+    PASS_REGULAR_EXPRESSION "R04QueueStarveConsumerStalls")
