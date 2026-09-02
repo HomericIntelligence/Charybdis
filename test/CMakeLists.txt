@@ -57,12 +57,37 @@ target_link_libraries(${PROJECT_NAME}_integration_tests
 #   * .nats       — needs Agamemnon + NATS only
 #   * .supervisor — additionally needs an external restart supervisor (R03)
 #   * .myrmidon   — additionally needs a live myrmidon pull consumer (R04)
+#   * .latency    — additionally needs Agamemnon's latency fault applied to
+#                   CHAOS_LATENCY_PROBE_POST_PATH (R02, see #95)
 set(_charybdis_supervisor_filter "ChaosResilienceTest.R03KillServiceHealthDegrades")
-set(_charybdis_myrmidon_filter "ChaosResilienceTest.R04_QueueStarve_ConsumerStalls")
+set(_charybdis_myrmidon_filter "ChaosResilienceTest.R04QueueStarveConsumerStalls")
+set(_charybdis_latency_filter "ChaosResilienceTest.R02LatencyInjectionSlowResponse")
+
+# Configure-time guard: every ChaosResilience test name listed below must be
+# known, and each partition filter must match one of them exactly. A typo in a
+# filter (or a renamed test) trips this and stops configuration, instead of
+# silently leaking the test into the default .nats slice.
+set(_charybdis_all_chaos_tests
+    "ChaosResilienceTest.R01NetworkPartitionDegradedHealth"
+    "ChaosResilienceTest.R02LatencyInjectionSlowResponse"
+    "ChaosResilienceTest.R03KillServiceHealthDegrades"
+    "ChaosResilienceTest.R04QueueStarveConsumerStalls"
+    "ChaosResilienceTest.R05MultiFaultStackedAndClearAll")
+set(_charybdis_partitioned_tests
+    "${_charybdis_supervisor_filter}"
+    "${_charybdis_myrmidon_filter}"
+    "${_charybdis_latency_filter}")
+foreach(_t IN LISTS _charybdis_partitioned_tests)
+  if(NOT _t IN_LIST _charybdis_all_chaos_tests)
+    message(FATAL_ERROR
+        "Partition filter '${_t}' does not match any known ChaosResilience "
+        "test; update _charybdis_all_chaos_tests or fix the typo.")
+  endif()
+endforeach()
 
 gtest_discover_tests(${PROJECT_NAME}_integration_tests
     TEST_SUFFIX .nats
-    EXTRA_ARGS "--gtest_filter=-${_charybdis_supervisor_filter}:${_charybdis_myrmidon_filter}"
+    EXTRA_ARGS "--gtest_filter=-${_charybdis_supervisor_filter}:${_charybdis_myrmidon_filter}:${_charybdis_latency_filter}"
     PROPERTIES LABELS "REQUIRES_NATS")
 
 # R03KillServiceHealthDegrades additionally requires an external restart supervisor
@@ -76,7 +101,7 @@ gtest_discover_tests(${PROJECT_NAME}_integration_tests
     EXTRA_ARGS "--gtest_filter=${_charybdis_supervisor_filter}"
     PROPERTIES LABELS "REQUIRES_NATS;REQUIRES_RESTART_SUPERVISOR")
 
-# R04_QueueStarve_ConsumerStalls additionally requires a live myrmidon pull consumer.
+# R04QueueStarveConsumerStalls additionally requires a live myrmidon pull consumer.
 # Without one, the task will never advance to 'completed' and the recovery assertion
 # will always time out. CI environments without a myrmidon agent can skip with:
 #   ctest --label-exclude REQUIRES_MYRMIDON
@@ -84,3 +109,13 @@ gtest_discover_tests(${PROJECT_NAME}_integration_tests
     TEST_SUFFIX .myrmidon
     EXTRA_ARGS "--gtest_filter=${_charybdis_myrmidon_filter}"
     PROPERTIES LABELS "REQUIRES_NATS;REQUIRES_MYRMIDON")
+
+# R02LatencyInjectionSlowResponse additionally requires Agamemnon's latency
+# fault to apply delay on CHAOS_LATENCY_PROBE_POST_PATH (default POST /v1/teams).
+# Environments where latency targets only NATS-internal paths cannot observe
+# the effect and should skip with:
+#   ctest --label-exclude REQUIRES_LATENCY_PROBE
+gtest_discover_tests(${PROJECT_NAME}_integration_tests
+    TEST_SUFFIX .latency
+    EXTRA_ARGS "--gtest_filter=${_charybdis_latency_filter}"
+    PROPERTIES LABELS "REQUIRES_NATS;REQUIRES_LATENCY_PROBE")

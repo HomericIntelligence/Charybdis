@@ -106,34 +106,64 @@ TEST_F(ChaosResilienceTest, R01NetworkPartitionDegradedHealth) {
       << "Agamemnon health did not recover within 10s after removing network partition";
 }
 
-// R02: Latency injection → subsequent requests are slow → fast after removal
+// R02: Latency injection → subsequent downstream POSTs are slow → fast after removal.
+//
+// REQUIRES_LATENCY_PROBE — Agamemnon's latency fault must apply delay to the
+//   probe endpoint configured via CHAOS_LATENCY_PROBE_POST_PATH (default POST
+//   /v1/teams). `/v1/health` was deliberately abandoned because a sensible
+//   Agamemnon implementation will exempt its own liveness handler from latency
+//   (otherwise supervisors flap); the actual delay manifests on downstream
+//   task/team paths that touch the NATS/myrmidon pipeline. See #95. Skip in
+//   environments without an instrumented probe path:
+//     ctest --label-exclude REQUIRES_LATENCY_PROBE
+//
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_F(ChaosResilienceTest, R02LatencyInjectionSlowResponse) {
-  const int delay_ms = 2000;
+  const int delay_ms = 1500;  // well below the 10s client read timeout
   const auto fault = inject("/v1/chaos/latency", {{"delay_ms", delay_ms}});
   const std::string fault_id = fault.value("id", "");
   ASSERT_FALSE(fault_id.empty());
   ASSERT_EQ(fault.value("type", ""), "latency");
 
-  // Assert effect: a health probe takes >= delay_ms to complete
+  const std::string probe = latency_probe_post_path();
+
+  // Assert effect: a downstream POST takes >= delay_ms. Use unique_request_tag
+  // (not random_suffix()) to guarantee distinct team names across the two
+  // back-to-back POSTs; random_suffix() is ms-epoch and routinely collides.
+  const nlohmann::json slow_body = {{"name", unique_request_tag("r02-latency-slow")}};
   const auto start_slow = std::chrono::steady_clock::now();
-  std::ignore = client_->get("/v1/health");
+  auto slow_resp = client_->post(probe, slow_body);
   const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                               std::chrono::steady_clock::now() - start_slow)
                               .count();
-  EXPECT_GE(elapsed_ms, delay_ms) << "Expected latency-injected request to take >= " << delay_ms
-                                  << "ms, got " << elapsed_ms << "ms";
+
+  // Distinguish "delay applied" from "client read-timeout swallowed the
+  // request": HttpTestClient::post returns status==0 on transient/timeout
+  // failures (see http_test_client.hpp Response struct). A real slow response
+  // returns 2xx/4xx/5xx in <10s; a swallowed timeout returns 0 near 10s.
+  ASSERT_NE(slow_resp.status, 0)
+      << "Probe POST " << probe << " returned status 0 (transient/timeout failure) after "
+      << elapsed_ms << "ms — the latency fault likely exceeded the cpp-httplib read timeout. "
+      << "Lower delay_ms or raise the client timeout.";
+  EXPECT_GE(elapsed_ms, delay_ms)
+      << "Expected latency-injected POST " << probe << " to take >= " << delay_ms << "ms, got "
+      << elapsed_ms << "ms — verify Agamemnon applies latency to this path or override "
+      << "CHAOS_LATENCY_PROBE_POST_PATH";
 
   // Remove fault
   remove(fault_id);
 
-  // Assert recovery: health probe now completes quickly
+  // Assert recovery: same downstream POST now completes quickly with a fresh
+  // body (so even if Agamemnon caches by name, both POSTs are distinct).
+  const nlohmann::json fast_body = {{"name", unique_request_tag("r02-latency-fast")}};
   const auto start_fast = std::chrono::steady_clock::now();
-  std::ignore = client_->get("/v1/health");
+  auto fast_resp = client_->post(probe, fast_body);
   const auto fast_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                            std::chrono::steady_clock::now() - start_fast)
                            .count();
-  EXPECT_LT(fast_ms, 1000) << "Expected fast request after latency removal, got " << fast_ms
-                           << "ms";
+  ASSERT_NE(fast_resp.status, 0) << "Recovery POST " << probe << " returned status 0";
+  EXPECT_LT(fast_ms, 1000) << "Expected fast POST " << probe << " after latency removal, got "
+                           << fast_ms << "ms";
 }
 
 // R03: Kill fault → health degrades → recovers after removal (or auto-restart)
@@ -253,7 +283,11 @@ TEST_F(ChaosResilienceTest, R04QueueStarveConsumerStalls) {
   EXPECT_TRUE(completed) << "Task did not complete within 10s after removing queue-starve fault";
 }
 
-// R05: Stacked faults (latency + kill) — both effects observable, all clear after removal
+// R05: Stacked faults (latency + kill) — both faults are listed in /v1/chaos,
+// the kill fault's degraded-health effect is observable, and the registry is
+// cleared after removal. R05 deliberately does NOT re-assert the latency
+// slow-down — that is R02's responsibility and depends on the probe path
+// contract (see CHAOS_LATENCY_PROBE_POST_PATH / REQUIRES_LATENCY_PROBE).
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 TEST_F(ChaosResilienceTest, R05MultiFaultStackedAndClearAll) {
   const int delay_ms = 1500;

@@ -71,7 +71,7 @@ directly.
 | Method | Path | Effect |
 |--------|------|--------|
 | `POST` | `/v1/chaos/network-partition` | Split Tailscale nodes; test NATS JetStream reconnect |
-| `POST` | `/v1/chaos/latency` | Inject latency on a node; test backpressure and rate limiting |
+| `POST` | `/v1/chaos/latency` | Inject latency on a node; test backpressure and rate limiting. R02 probes `CHAOS_LATENCY_PROBE_POST_PATH` (default `POST /v1/teams`); skip with `ctest --label-exclude REQUIRES_LATENCY_PROBE` |
 | `POST` | `/v1/chaos/kill` | Kill a named service; test restart and recovery |
 | `POST` | `/v1/chaos/queue-starve` | Stall all pull consumers on a subject; test no message loss |
 | `GET` | `/v1/chaos` | List active faults (returns `{"faults": [...]}`) |
