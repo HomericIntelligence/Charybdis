@@ -118,6 +118,25 @@ struct HttpTestClient::CircuitBreaker {
   std::chrono::steady_clock::time_point opened_at_;
 };
 
+// ── Port parsing (exposed in namespace detail for unit tests, #138) ─────────
+
+namespace detail {
+
+int parse_port(const std::string& port_str) {
+  try {
+    return std::stoi(port_str);
+    // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
+  } catch (const std::invalid_argument& e) {
+    // Unreachable from the constructor's (\d+) capture — see header invariant (#138).
+    throw std::runtime_error("HttpTestClient: invalid port '" + port_str + "': " + e.what());
+    // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
+  } catch (const std::out_of_range& e) {
+    throw std::runtime_error("HttpTestClient: port out of range '" + port_str + "': " + e.what());
+  }
+}
+
+}  // namespace detail
+
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 HttpTestClient::HttpTestClient(const std::string& base_url, RetryPolicy retry,
                                CircuitBreakerConfig breaker_cfg, TimeoutConfig timeouts)
@@ -136,17 +155,7 @@ HttpTestClient::HttpTestClient(const std::string& base_url, RetryPolicy retry,
   std::smatch match = {};
   if (std::regex_match(base_url, match, url_re)) {
     host_ = match[1].str();
-    try {
-      port_ = std::stoi(match[2].str());
-      // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
-    } catch (const std::invalid_argument& e) {
-      throw std::runtime_error("HttpTestClient: invalid port '" + match[2].str() +
-                               "': " + e.what());
-      // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
-    } catch (const std::out_of_range& e) {
-      throw std::runtime_error("HttpTestClient: port out of range '" + match[2].str() +
-                               "': " + e.what());
-    }
+    port_ = detail::parse_port(match[2].str());
     if (port_ < 1 || port_ > 65535) {
       throw std::runtime_error("HttpTestClient: port out of valid range [1,65535]: " +
                                match[2].str());

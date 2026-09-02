@@ -55,15 +55,25 @@ TEST(HttpTestClientUnit, OutOfValidPortRangeThrows) {
   EXPECT_THROW(HttpTestClient("http://127.0.0.1:99999"), std::runtime_error);
 }
 
-TEST(HttpTestClientUnit, InvalidPortErrorMessageContainsPort) {
-  // Documented contract (issue #194): the diagnostic message embeds the
-  // offending port text so failures are actionable.
+TEST(HttpTestClientUnit, ParsePortValidDigits) { EXPECT_EQ(detail::parse_port("8080"), 8080); }
+
+TEST(HttpTestClientUnit, ParsePortInvalidArgumentRethrown) {
+  // Unreachable through the constructor's (\d+) capture (issue #138); the
+  // wrapper is called directly to cover the std::invalid_argument branch.
   try {
-    const HttpTestClient client("http://127.0.0.1:70000");
-    (void)client;
-    FAIL() << "Expected std::runtime_error for out-of-range port";
+    (void)detail::parse_port("not-a-number");
+    FAIL() << "expected std::runtime_error";
   } catch (const std::runtime_error& e) {
-    EXPECT_NE(std::string(e.what()).find("70000"), std::string::npos);
+    EXPECT_NE(std::string(e.what()).find("invalid port"), std::string::npos);
+  }
+}
+
+TEST(HttpTestClientUnit, ParsePortOutOfRangeRethrown) {
+  try {
+    (void)detail::parse_port("99999999999");  // overflows int → std::out_of_range
+    FAIL() << "expected std::runtime_error";
+  } catch (const std::runtime_error& e) {
+    EXPECT_NE(std::string(e.what()).find("port out of range"), std::string::npos);
   }
 }
 
