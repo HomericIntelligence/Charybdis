@@ -8,14 +8,14 @@
       "groupName": "C++ Conan dependencies"
     },
     {
-      "matchManagers": ["pixi"],
-      "groupName": "pixi build tools",
-      "schedule": ["before 5am on the first day of the month"]
+      "description": "Python build-toolchain wheels (incl. conan in pyproject.toml + uv.lock) are owned by Dependabot's fleet-baseline 'uv' ecosystem (.github/dependabot.yml); Renovate must not open duplicate update PRs.",
+      "matchManagers": ["pep621", "uv"],
+      "enabled": false
     },
     {
+      "description": "GitHub Actions bumps are owned by Dependabot's fleet-baseline 'github-actions' ecosystem (.github/dependabot.yml); Renovate must not open duplicate update PRs.",
       "matchManagers": ["github-actions"],
-      "groupName": "GitHub Actions",
-      "automerge": true
+      "enabled": false
     }
   ]
 }

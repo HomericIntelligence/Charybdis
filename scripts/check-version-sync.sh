@@ -37,4 +37,15 @@ if [ -f "${ROOT}/pyproject.toml" ]; then
   fi
 fi
 
+# ADR-018: build-toolchain Python packages (incl. conan) come from
+# pyproject.toml + uv.lock (uv sync --locked in the Dockerfile). A hardcoded
+# pip install of a pinned tool in the Dockerfile silently bypasses the
+# lockfile and goes stale — the exact failure mode issue #134 describes.
+if grep -qE 'pip3? install[^|;&]*conan==' "${ROOT}/Dockerfile"; then
+  echo "ERROR: Dockerfile hardcodes a conan pip pin; build-toolchain versions must come from pyproject.toml/uv.lock (ADR-018). See issue #134." >&2
+  FAIL=1
+else
+  echo "Dockerfile: no hardcoded conan pip pin OK"
+fi
+
 exit "${FAIL}"
