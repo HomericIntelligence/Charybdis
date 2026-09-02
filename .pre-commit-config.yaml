@@ -83,11 +83,14 @@ repos:
         entry: ./scripts/test-merge-queue-policy.py
         files: ^(\.github/workflows/.*\.ya?ml|configs/github/merge-queue-policy\.json|docs/ci/merge-queue\.md|scripts/test-merge-queue-policy\.py|justfile)$
         pass_filenames: false
-      - id: container-attestation
-        name: "validate container SBOM/provenance attestation wiring"
+      - id: branch-protection-policy
+        name: "validate branch-protection bypass-actor governance"
+        description: >
+          scripts/apply-branch-protection.sh must clear bypass_actors to []
+          and the Ruleset Audit workflow must fail on any bypass actor (#101).
         language: system
-        entry: ./scripts/test-container-attestation.py
-        files: ^(\.github/workflows/release\.yml|scripts/test-container-attestation\.py)$
+        entry: ./scripts/test-branch-protection-policy.py
+        files: ^(scripts/apply-branch-protection\.sh|scripts/test-branch-protection-policy\.py|\.github/workflows/ruleset-audit\.yml|CONTRIBUTING\.md)$
         pass_filenames: false
       - id: require-signed-commits
         name: "require gpg/ssh-signed commits on push"

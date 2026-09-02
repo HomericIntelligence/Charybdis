@@ -453,6 +453,16 @@ A `403 Forbidden` response from the GitHub API means either the `repo` scope is 
 or the authenticated user does not have org admin rights. Re-check the scopes with
 `gh auth status` and regenerate the token if needed.
 
+#### Governance: No Bypass Actors
+
+`scripts/apply-branch-protection.sh` resets `bypass_actors` to `[]` on every apply —
+no actor (including repository admins) can bypass the `pull_request` rule on the
+`homeric-main-baseline` ruleset (issue #101). Do **not** re-add bypass actors via the
+GitHub UI; the `Ruleset Audit` workflow (`.github/workflows/ruleset-audit.yml`) fails
+when any bypass actor is present, and the next run of `apply-branch-protection.sh`
+resets the field to `[]`. Reverting this behaviour requires the same elevated token
+documented above and is a governance decision, not a routine edit.
+
 ## Code of Conduct
 
 Please review our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
