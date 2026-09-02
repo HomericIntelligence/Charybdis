@@ -75,11 +75,11 @@ TEST_F(ProtocolCorrectnessTest, C10IdempotentStreamCreation) {
 // Verify task state is only pending or completed (no intermediate states)
 TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
   // Create and immediately check state
-  [[maybe_unused]] auto [s1, team] = client_->post("/v1/teams", {{"name", "state-team"}});
-  (void)s1;
-  const std::string team_id = team.value("team", nlohmann::json{}).value("id", "");
+  const auto team_create = client_->post("/v1/teams", {{"name", "state-team"}});
+  const std::string team_id =
+      team_create.body.value("team", nlohmann::json{}).value("id", "");
 
-  [[maybe_unused]] auto [s2, agent] =
+  const auto agent_create =
       client_->post("/v1/agents", {{"name", "state-agent"},
                                    {"label", "State"},
                                    {"program", "none"},
@@ -88,24 +88,22 @@ TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
                                    {"tags", nlohmann::json::array()},
                                    {"owner", "e2e"},
                                    {"role", "member"}});
-  (void)s2;
-  const std::string agent_id = extract_agent_id(agent);
+  const std::string agent_id = extract_agent_id(agent_create.body);
 
-  [[maybe_unused]] auto [s3, task_resp] =
+  const auto task_create =
       client_->post("/v1/teams/" + team_id + "/tasks", {{"subject", "State test"},
                                                         {"description", "state"},
                                                         {"type", "hello"},
                                                         {"assigneeAgentId", agent_id}});
-  (void)s3;
-  const std::string task_id = task_resp.value("task", nlohmann::json{}).value("id", "");
+  const std::string task_id =
+      task_create.body.value("task", nlohmann::json{}).value("id", "");
 
   // Poll and collect states
   std::set<std::string> observed_states;
   std::ignore = wait_until(
       [&]() {
-        [[maybe_unused]] auto [ts, tasks] = client_->get("/v1/tasks");
-        (void)ts;
-        for (const auto& task : tasks.value("tasks", nlohmann::json::array())) {
+        const auto resp = client_->get("/v1/tasks");
+        for (const auto& task : resp.body.value("tasks", nlohmann::json::array())) {
           if (task.value("id", "") == task_id) {
             observed_states.insert(task.value("status", "unknown"));
             return task.value("status", "") == "completed";
