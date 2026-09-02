@@ -120,37 +120,39 @@ struct HttpTestClient::CircuitBreaker {
 
 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 HttpTestClient::HttpTestClient(const std::string& base_url, RetryPolicy retry,
-                               CircuitBreakerConfig breaker_cfg, TimeoutConfig timeouts)
-    : retry_(retry), timeouts_(timeouts), cb_(std::make_unique<CircuitBreaker>(breaker_cfg)) {
-  if (timeouts_.connection_timeout_sec < 0) {
-    throw std::runtime_error("HttpTestClient: connection_timeout_sec must be >= 0, got " +
-                             std::to_string(timeouts_.connection_timeout_sec));
-  }
-  if (timeouts_.read_timeout_sec < 0) {
-    throw std::runtime_error("HttpTestClient: read_timeout_sec must be >= 0, got " +
-                             std::to_string(timeouts_.read_timeout_sec));
-  }
-  // Parse "http://host:port" into host and port
-  const std::regex url_re(R"(https?://([^:]+):(\d+))");
+                               CircuitBreakerConfig breaker_cfg)
+    : retry_(retry), cb_(std::make_unique<CircuitBreaker>(breaker_cfg)) {
+  // Parse "http(s)://host[:port][/path]" into host and port. Port defaults to
+  // 80 (http) or 443 (https) when omitted; any path/query suffix is ignored
+  // because httplib::Client only needs host and port.
+  const std::regex url_re(R"((https?)://([^:/?#]+)(?::(\d+))?(?:[/?#].*)?)");
   // NOLINTNEXTLINE(misc-const-correctness) — mutated as regex_match output parameter
   std::smatch match = {};
   if (std::regex_match(base_url, match, url_re)) {
-    host_ = match[1].str();
-    try {
-      port_ = std::stoi(match[2].str());
-      // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
-    } catch (const std::invalid_argument& e) {
-      throw std::runtime_error("HttpTestClient: invalid port '" + match[2].str() +
-                               "': " + e.what());
-      // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
-    } catch (const std::out_of_range& e) {
-      throw std::runtime_error("HttpTestClient: port out of range '" + match[2].str() +
-                               "': " + e.what());
+    host_ = match[2].str();
+    if (match[3].matched) {
+      try {
+        port_ = std::stoi(match[3].str());
+        // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
+      } catch (const std::invalid_argument& e) {
+        throw std::runtime_error("HttpTestClient: invalid port '" + match[3].str() +
+                                 "': " + e.what());
+        // NOLINTNEXTLINE(bugprone-empty-catch) — catch rethrows, not empty
+      } catch (const std::out_of_range& e) {
+        throw std::runtime_error("HttpTestClient: port out of range '" + match[3].str() +
+                                 "': " + e.what());
+      }
+      if (port_ < 1 || port_ > 65535) {
+        throw std::runtime_error("HttpTestClient: port out of valid range [1,65535]: " +
+                                 match[3].str());
+      }
+    } else {
+      port_ = (match[1].str() == "https") ? 443 : 80;
     }
-    if (port_ < 1 || port_ > 65535) {
-      throw std::runtime_error("HttpTestClient: port out of valid range [1,65535]: " +
-                               match[2].str());
-    }
+  } else if (base_url.rfind("http://", 0) == 0 || base_url.rfind("https://", 0) == 0) {
+    // Looks like an HTTP URL but is malformed (e.g. empty host) — throwing is
+    // better than silently connecting to the wrong endpoint (issue #137).
+    throw std::runtime_error("HttpTestClient: unparseable HTTP URL: " + base_url);
   } else {
     host_ = "localhost";
     port_ = 8080;
