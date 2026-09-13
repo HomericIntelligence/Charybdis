@@ -45,9 +45,30 @@ TEST(HttpTestClientUnit, HttpsUrlParsing) {
   EXPECT_FALSE(client.is_healthy());
 }
 
-TEST(HttpTestClientUnit, OutOfRangePortThrows) {
-  // 11-digit value overflows int — stoi throws std::out_of_range, rethrown as std::runtime_error.
-  EXPECT_THROW(HttpTestClient("http://127.0.0.1:99999999999"), std::runtime_error);
+TEST(HttpTestClientUnit, OverflowingDigitPortFallsBackToDefaults) {
+  // 11 digits no longer match the anchored port regex ([1-9]\d{0,4}|0), so the
+  // constructor takes the default-fallback branch instead of throwing.
+  HttpTestClient client("http://127.0.0.1:99999999999");
+  EXPECT_FALSE(client.is_healthy());
+}
+
+TEST(HttpTestClientUnit, LeadingZeroPortFallsBackToDefaults) {
+  // Leading-zero ports like ":080" are rejected by the regex and fall back to
+  // localhost:8080 rather than silently parsing as port 80.
+  HttpTestClient client("http://127.0.0.1:080");
+  EXPECT_FALSE(client.is_healthy());
+}
+
+TEST(HttpTestClientUnit, ZeroPortStillThrows) {
+  // ":0" still matches via the |0 alternative, then trips the [1,65535] guard.
+  EXPECT_THROW(HttpTestClient("http://127.0.0.1:0"), std::runtime_error);
+}
+
+TEST(HttpTestClientUnit, MaxValidPortAccepted) {
+  // ":65535" is the upper boundary — still matches and parses (connection is
+  // refused, so is_healthy() is false).
+  HttpTestClient client("http://127.0.0.1:65535");
+  EXPECT_FALSE(client.is_healthy());
 }
 
 TEST(HttpTestClientUnit, OutOfValidPortRangeThrows) {
