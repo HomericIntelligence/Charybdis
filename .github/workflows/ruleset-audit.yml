@@ -1,15 +1,18 @@
 name: Ruleset Audit
 
-# Asserts that the active branch-protection ruleset exists, is enforced, and
-# defines a required_approving_review_count on pull requests targeting main.
+# Asserts two governance invariants on the active branch-protection ruleset:
+#   1. The pull_request rule exists with a valid required_approving_review_count
+#      (see issue #102, follow-up from #15).
+#   2. bypass_actors is empty — no actor (including repo admins) can bypass the
+#      pull_request rule (issue #101).
 #
 # Org policy (deliberate): required_approving_review_count = 0 across all 14
 # HomericIntelligence repos — approvals are NOT required to merge. This audit
 # therefore only checks that the pull_request rule is present and that the
 # count is a valid non-negative value (>= MIN_REVIEWERS, currently 0), not
 # that approvals are actually required. It still guards against the ruleset
-# being deleted or the pull_request rule silently disappearing (see issue
-# #102, follow-up from #15).
+# being deleted or the pull_request rule silently disappearing, and against a
+# bypass actor being re-added via the GitHub UI.
 
 on:
   pull_request:
@@ -84,3 +87,20 @@ jobs:
           fi
 
           echo "OK: required_approving_review_count=${COUNT} (>= ${MIN_REVIEWERS}) on '${RULESET_NAME}'"
+
+      - name: Assert bypass_actors is empty
+        env:
+          RULESET_ID: ${{ steps.resolve.outputs.ruleset_id }}
+        run: |
+          set -euo pipefail
+          BYPASS_LEN=$(gh api "repos/${ORG}/${REPO}/rulesets/${RULESET_ID}" \
+            --jq '.bypass_actors | length')
+
+          if [ "${BYPASS_LEN}" != "0" ]; then
+            echo "::error::bypass_actors length is ${BYPASS_LEN}, expected 0."
+            echo "A bypass actor was re-added to '${RULESET_NAME}'. See issue #101." >&2
+            echo "Restore via: scripts/apply-branch-protection.sh" >&2
+            exit 1
+          fi
+
+          echo "OK: bypass_actors=[] confirmed on '${RULESET_NAME}'"

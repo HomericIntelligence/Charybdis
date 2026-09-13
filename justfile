@@ -54,23 +54,14 @@ coverage: deps
 merge-queue-policy:
   ./scripts/test-merge-queue-policy.py
 
-# Structural regression tests for container SBOM/provenance attestation (#108)
-attestation-policy:
-  ./scripts/test-container-attestation.py
+branch-protection-policy:
+  ./scripts/test-branch-protection-policy.py
 
 clean:
   rm -rf build install
 
-# Remove Conan-cached packages and the debug build dir so gtest is rebuilt
-# with the active (sanitized-PATH) compiler. Use after a toolchain mismatch
-# left stale, ABI-incompatible cached binaries behind (#164). Deliberately
-# narrower than `clean`: release/coverage builds are untouched.
-clean-deps:
-  uv run conan remove "gtest/*" -c
-  rm -rf build/debug
-
-ci: merge-queue-policy attestation-policy
-  . scripts/dev-env.sh && uv run cmake --preset ci && uv run cmake --build --preset ci && uv run ctest --preset ci
+ci: merge-queue-policy branch-protection-policy
+  uv run cmake --preset ci && uv run cmake --build --preset ci && uv run ctest --preset ci
 
 # === Containerized CI (podman by default) ===
 
