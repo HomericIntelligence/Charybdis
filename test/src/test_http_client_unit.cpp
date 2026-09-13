@@ -306,28 +306,28 @@ TEST_F(HttpTestClientOnline, DelParsesJsonResponse) {
 }
 
 TEST_F(HttpTestClientOnline, GetRejectsOversizedBody) {
-  [[maybe_unused]] auto [status, body] = client_->get("/v1/oversized");
-  (void)status;
-  EXPECT_EQ(body.value("error", ""), "response_too_large");
+  const auto resp = client_->get("/v1/oversized");
+  EXPECT_EQ(resp.body.value("error", ""), "response_too_large");
+  EXPECT_NE(resp.status, 0);
 }
 
 TEST_F(HttpTestClientOnline, PostRejectsOversizedBody) {
-  [[maybe_unused]] auto [status, body] = client_->post("/v1/oversized-echo", {{"x", 1}});
-  (void)status;
-  EXPECT_EQ(body.value("error", ""), "response_too_large");
+  const auto resp = client_->post("/v1/oversized-echo", {{"x", 1}});
+  EXPECT_EQ(resp.body.value("error", ""), "response_too_large");
+  EXPECT_NE(resp.status, 0);
 }
 
 TEST_F(HttpTestClientOnline, PostRawRejectsOversizedBody) {
-  [[maybe_unused]] auto [status, body] =
+  const auto resp =
       client_->post_raw("/v1/oversized-echo", R"({"x":1})", "application/json");
-  (void)status;
-  EXPECT_EQ(body.value("error", ""), "response_too_large");
+  EXPECT_EQ(resp.body.value("error", ""), "response_too_large");
+  EXPECT_NE(resp.status, 0);
 }
 
 TEST_F(HttpTestClientOnline, DelRejectsOversizedBody) {
-  [[maybe_unused]] auto [status, body] = client_->del("/v1/oversized");
-  (void)status;
-  EXPECT_EQ(body.value("error", ""), "response_too_large");
+  const auto resp = client_->del("/v1/oversized");
+  EXPECT_EQ(resp.body.value("error", ""), "response_too_large");
+  EXPECT_NE(resp.status, 0);
 }
 
 TEST_F(HttpTestClientOnline, BoundaryBodyNotRejected) {
@@ -353,16 +353,13 @@ TEST_F(HttpTestClientOnline, ClientPointerStableAcrossGetPostDel) {
   const httplib::Client* before = client_->test_client_ptr();
   ASSERT_NE(before, nullptr);
 
-  auto [gs, gb] = client_->get("/v1/json");
-  EXPECT_EQ(gs, 200);
+  EXPECT_EQ(client_->get("/v1/json").status, 200);
   EXPECT_EQ(client_->test_client_ptr(), before);
 
-  auto [ps, pb] = client_->post("/v1/echo", {{"k", "v"}});
-  EXPECT_EQ(ps, 200);
+  EXPECT_EQ(client_->post("/v1/echo", {{"k", "v"}}).status, 200);
   EXPECT_EQ(client_->test_client_ptr(), before);
 
-  auto [ds, db] = client_->del("/v1/item");
-  EXPECT_EQ(ds, 200);
+  EXPECT_EQ(client_->del("/v1/item").status, 200);
   EXPECT_EQ(client_->test_client_ptr(), before);
 }
 
