@@ -57,6 +57,18 @@ repos:
         files: ^\.github/workflows/.*\.ya?ml$
         pass_filenames: true
 
+      - id: forbid-using-namespace-projectcharybdis
+        name: "forbid `using namespace projectcharybdis` in test sources"
+        description: >
+          Test files must qualify symbols via `projectcharybdis::` or open a
+          namespace block. The `using namespace projectcharybdis;` shortcut was
+          removed in #34; this guard prevents regressions. See #186.
+        language: pygrep
+        entry: '^\s*using\s+namespace\s+projectcharybdis\s*;'
+        files: ^test/.*\.(cpp|hpp|h)$
+        types: [text]
+        pass_filenames: true
+
       - id: version-sync
         name: "Version sync check"
         description: >
