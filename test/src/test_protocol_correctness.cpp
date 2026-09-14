@@ -107,14 +107,14 @@ TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
         [[maybe_unused]] auto [ts, tasks] = client_->get("/v1/tasks");
         (void)ts;
         const auto& task_list = tasks.value("tasks", nlohmann::json::array());
-        const auto it = std::find_if(task_list.begin(), task_list.end(), [&](const auto& task) {
-          return task.value("id", "") == task_id;
-        });
-        if (it == task_list.end()) {
+        const auto task_it =
+            std::find_if(task_list.begin(), task_list.end(),
+                         [&](const auto& task) { return task.value("id", "") == task_id; });
+        if (task_it == task_list.end()) {
           return false;
         }
-        observed_states.insert(it->value("status", "unknown"));
-        return it->value("status", "") == "completed";
+        observed_states.insert(task_it->value("status", "unknown"));
+        return task_it->value("status", "") == "completed";
       },
       std::chrono::seconds{30});
 
