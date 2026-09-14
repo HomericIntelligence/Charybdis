@@ -54,6 +54,10 @@ coverage: deps
 merge-queue-policy:
   ./scripts/test-merge-queue-policy.py
 
+# Structural regression tests for static-analysis placement and gating (#373)
+static-analysis-policy:
+  ./scripts/test-static-analysis-policy.py
+
 # Structural regression tests for container SBOM/provenance attestation (#108)
 attestation-policy:
   ./scripts/test-container-attestation.py
@@ -69,7 +73,7 @@ clean-deps:
   uv run conan remove "gtest/*" -c
   rm -rf build/debug
 
-ci: merge-queue-policy attestation-policy
+ci: merge-queue-policy attestation-policy static-analysis-policy
   . scripts/dev-env.sh && uv run cmake --preset ci && uv run cmake --build --preset ci && uv run ctest --preset ci
 
 # === Containerized CI (podman by default) ===
