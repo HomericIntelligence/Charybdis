@@ -148,8 +148,48 @@ endif()
 if(${PROJECT_NAME}_ENABLE_CPPCHECK)
   find_program(CPPCHECK cppcheck)
   if(CPPCHECK)
-    set(CMAKE_CXX_CPPCHECK ${CPPCHECK} --suppress=missingInclude --enable=all
-                           --inline-suppr --inconclusive)
+    # --library=googletest teaches cppcheck the gtest TEST()/TEST_F() macros via the
+    # shipped cfg/googletest.cfg (which defines them as function definitions).
+    # Without it `<gtest/gtest.h>` is never on cppcheck's include path, `TEST` is an
+    # unknown macro, and cppcheck aborts every gtest translation unit at the SECOND
+    # TEST() with `error: syntax error [syntaxError]` -- analyzing none of it. That
+    # silently skipped 11 of 13 TUs. See #375.
+    #
+    # --error-exitcode=1 is what makes this a gate. CMake's CMAKE_CXX_CPPCHECK
+    # integration never adds it, so without it the build succeeds even on
+    # `error:`-severity findings and the required `lint` aggregate passes on a
+    # clean-looking job that found nothing.
+    #
+    # The three --suppress= entries below are the *only* findings suppressed by id;
+    # everything else is either fixed or suppressed inline at its site. Each is
+    # unavoidable under CMake's per-translation-unit invocation:
+    #
+    #   missingIncludeSystem  cppcheck is not given any -isystem paths, so every
+    #                         `#include <...>` reports this. cppcheck's own message
+    #                         says it does not need stdlib headers. Note this is NOT
+    #                         `missingInclude` -- the project-header id -- because
+    #                         the build does pass -I include and -I build/debug/include,
+    #                         so those resolve. The two ids were previously conflated.
+    #   unusedFunction        only reliable in whole-program mode; per-TU every
+    #                         function used from another TU is a false positive, and
+    #                         googletest.cfg defines each TEST body as a function.
+    #   unmatchedSuppression  a suppression is "unused" in any TU with no finding of
+    #                         that id (e.g. unusedFunction in main.cpp), and reports
+    #                         itself as a finding. Without this the gate would fail
+    #                         on the suppressions that make it usable. The cost is
+    #                         that a *stale* suppression becomes invisible, so
+    #                         scripts/test-static-analysis-policy.py pins this exact
+    #                         list and fails if it changes.
+    set(CMAKE_CXX_CPPCHECK
+        ${CPPCHECK}
+        --enable=all
+        --inline-suppr
+        --inconclusive
+        --library=googletest
+        --error-exitcode=1
+        --suppress=missingIncludeSystem
+        --suppress=unusedFunction
+        --suppress=unmatchedSuppression)
   else()
     message(WARNING "cppcheck not found")
   endif()

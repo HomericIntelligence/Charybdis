@@ -46,12 +46,17 @@ TEST(HttpTestClientUnit, HttpsUrlParsing) {
 }
 
 TEST(HttpTestClientUnit, OutOfRangePortThrows) {
-  // 11-digit value overflows int — stoi throws std::out_of_range, rethrown as std::runtime_error.
+  // 11-digit value overflows int — stoi throws std::out_of_range, rethrown as
+  // std::runtime_error. The temporary below IS the expression under test:
+  // cppcheck's googletest.cfg expands EXPECT_THROW to try{code;}catch(e){},
+  // which discards any nameable object, so the finding is an artefact.
+  // cppcheck-suppress unusedScopedObject
   EXPECT_THROW(HttpTestClient("http://127.0.0.1:99999999999"), std::runtime_error);
 }
 
 TEST(HttpTestClientUnit, OutOfValidPortRangeThrows) {
   // 99999 fits in int but exceeds the valid TCP port range [1,65535].
+  // cppcheck-suppress unusedScopedObject
   EXPECT_THROW(HttpTestClient("http://127.0.0.1:99999"), std::runtime_error);
 }
 

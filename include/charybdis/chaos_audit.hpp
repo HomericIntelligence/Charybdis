@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -73,13 +74,13 @@ class ChaosAuditLog {
       return;
     }
     const std::filesystem::path candidate(dest_view);
-    for (const auto& part : candidate) {
-      if (part == "..") {
-        std::cerr
-            << R"({"chaos_audit_warning":"CHAOS_AUDIT_LOG rejects parent-directory traversal; falling back to stderr"})"
-            << '\n';
-        return;
-      }
+    const bool has_parent_segment = std::any_of(candidate.begin(), candidate.end(),
+                                                [](const auto& part) { return part == ".."; });
+    if (has_parent_segment) {
+      std::cerr
+          << R"({"chaos_audit_warning":"CHAOS_AUDIT_LOG rejects parent-directory traversal; falling back to stderr"})"
+          << '\n';
+      return;
     }
     std::error_code err_code;
     const std::filesystem::path resolved = std::filesystem::weakly_canonical(candidate, err_code);

@@ -15,6 +15,8 @@
 
 #include "charybdis/chaos_audit.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -123,12 +125,7 @@ TEST_F(ChaosAuditLogTest, MultipleEventsAreNewlineDelimited) {
     audit.log_remove("kill", "f-1", "http://a", 204, nlohmann::json::object());
   }
   auto contents = slurp(path_);
-  std::size_t lines = 0;
-  for (const char chr : contents) {
-    if (chr == '\n') {
-      ++lines;
-    }
-  }
+  const auto lines = static_cast<std::size_t>(std::count(contents.begin(), contents.end(), '\n'));
   EXPECT_EQ(lines, 3U);
 }
 

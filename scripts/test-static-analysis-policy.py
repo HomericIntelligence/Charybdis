@@ -14,7 +14,13 @@ These tests pin the corrected contract:
   * the only place either analyzer is switched on is its own job inside the
     dedicated Static Analysis workflow;
   * the required `lint` and `All Static Analysis Checks` aggregates gate on both
-    analyzer jobs.
+    analyzer jobs;
+  * cppcheck's argument list forms a *real* gate (#375): `--error-exitcode=1` is
+    present (CMake never adds it, so without it a required job passes while
+    finding nothing fatal), `--library=googletest` is loaded (without it cppcheck
+    aborts every gtest translation unit at the second `TEST()` with a syntax
+    error and analyzes none of it), and the globally suppressed id set is exactly
+    the documented baseline.
 
 The negative cases at the bottom mutate the real file contents and assert the
 validators reject them, so the suite cannot silently become a no-op.
@@ -55,10 +61,95 @@ _OPTION_DEFAULT_RE = re.compile(
     re.S,
 )
 _ENABLE_RE = re.compile(r"Charybdis_ENABLE_(CLANG_TIDY|CPPCHECK)\s*=\s*ON\b")
+_SET_CPPCHECK_RE = re.compile(r"set\(CMAKE_CXX_CPPCHECK(.*?)\)", re.S)
+
+# Flags cppcheck's argument list must carry. `--error-exitcode=1` is the whole point:
+# CMake's CMAKE_CXX_CPPCHECK integration never adds it, so a build (and therefore the
+# required `lint` aggregate) succeeds even on an `error:`-severity finding.
+REQUIRED_CPPCHECK_FLAGS = {
+    "--enable=all",
+    "--inline-suppr",
+    "--inconclusive",
+    "--library=googletest",
+    "--error-exitcode=1",
+}
+
+# The complete suppression baseline. Each of these cannot work under CMake's
+# per-translation-unit invocation:
+#   missingIncludeSystem  no -isystem paths are handed to cppcheck, so every
+#                         `#include <...>` reports this; cppcheck documents that it
+#                         does not need stdlib headers.
+#   unusedFunction        whole-program-only check; per-TU every function used from
+#                         another TU is a false positive, and googletest.cfg defines
+#                         each TEST body as a standalone function.
+#   unmatchedSuppression  a suppression is "unused" in any TU with no finding of that
+#                         id, which itself reports as a finding.
+EXPECTED_CPPCHECK_SUPPRESSIONS = {
+    "missingIncludeSystem",
+    "unusedFunction",
+    "unmatchedSuppression",
+}
 
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def cppcheck_args(text: str) -> list[str]:
+    """Every argv entry in ``set(CMAKE_CXX_CPPCHECK ...)``, with comments stripped.
+
+    The ``${CPPCHECK}`` placeholder is dropped: the test pins the arguments around it.
+    """
+    match = _SET_CPPCHECK_RE.search(text)
+    if not match:
+        return []
+    args: list[str] = []
+    for line in match.group(1).splitlines():
+        uncommented = line.split("#", 1)[0].strip()
+        args.extend(uncommented.split())
+    return [arg for arg in args if not arg.startswith("${")]
+
+
+def cppcheck_suppressions(text: str) -> set[str]:
+    return {
+        arg.split("=", 1)[1]
+        for arg in cppcheck_args(text)
+        if arg.startswith("--suppress=")
+    }
+
+
+def cppcheck_gate_violations(text: str) -> list[str]:
+    """The cppcheck arguments must form a gate whose suppression list is the baseline."""
+    args = cppcheck_args(text)
+    if not args:
+        return [f"{CMAKE_MODULE_PATH.name}: no set(CMAKE_CXX_CPPCHECK ...) argument list"]
+
+    violations = [
+        f"{CMAKE_MODULE_PATH.name}: cppcheck is missing {flag}"
+        for flag in sorted(REQUIRED_CPPCHECK_FLAGS)
+        if flag not in args
+    ]
+
+    suppressions = cppcheck_suppressions(text)
+    violations += [
+        f"{CMAKE_MODULE_PATH.name}: unexpected cppcheck suppression '{name}'"
+        for name in sorted(suppressions - EXPECTED_CPPCHECK_SUPPRESSIONS)
+    ]
+    violations += [
+        f"{CMAKE_MODULE_PATH.name}: cppcheck suppression '{name}' is missing"
+        for name in sorted(EXPECTED_CPPCHECK_SUPPRESSIONS - suppressions)
+    ]
+
+    # `missingInclude` (the pre-#375 entry) suppresses the *project*-header id, which
+    # never fires here because the build passes -I include and -I build/debug/include,
+    # so it matched nothing and reported unmatchedSuppression instead. cppcheck 2.x
+    # reports system headers under the separate `missingIncludeSystem` id.
+    if "missingInclude" in suppressions:
+        violations.append(
+            f"{CMAKE_MODULE_PATH.name}: --suppress=missingInclude matches nothing in this "
+            f"build (project headers resolve); the system-header id is missingIncludeSystem"
+        )
+    return violations
 
 
 def _jobs_block(text: str) -> str:
@@ -299,6 +390,34 @@ class TestPolicyWiring(unittest.TestCase):
         )
 
 
+class TestCppcheckHardGate(unittest.TestCase):
+    """cppcheck must be a gate, and must actually analyze the code (#375)."""
+
+    def test_argument_list_satisfies_the_gate_contract(self) -> None:
+        self.assertEqual(cppcheck_gate_violations(_read(CMAKE_MODULE_PATH)), [])
+
+    def test_findings_are_fatal(self) -> None:
+        args = cppcheck_args(_read(CMAKE_MODULE_PATH))
+        self.assertIn("--error-exitcode=1", args)
+        # Placeholder ordering matters: the flags must be cppcheck's argv, not its input.
+        self.assertTrue(all(arg.startswith("--") for arg in args))
+
+    def test_gtest_tus_are_parseable(self) -> None:
+        """Without googletest.cfg cppcheck aborts on the second TEST() in every TU."""
+        self.assertIn("--library=googletest", cppcheck_args(_read(CMAKE_MODULE_PATH)))
+
+    def test_suppression_list_is_exactly_the_baseline(self) -> None:
+        self.assertEqual(
+            cppcheck_suppressions(_read(CMAKE_MODULE_PATH)),
+            EXPECTED_CPPCHECK_SUPPRESSIONS,
+        )
+
+    def test_module_documents_the_gate(self) -> None:
+        text = _read(CMAKE_MODULE_PATH)
+        for token in ("#375", "--error-exitcode=1", "--library=googletest", "missingIncludeSystem"):
+            self.assertIn(token, text)
+
+
 class TestValidatorsRejectRegressions(unittest.TestCase):
     """Negative cases: the validators must fail on the defect this pins."""
 
@@ -381,6 +500,50 @@ class TestValidatorsRejectRegressions(unittest.TestCase):
         self.assertNotEqual(mutated, text)
         violations = gate_violations(STATIC_ANALYSIS_WORKFLOW, mutated)
         self.assertEqual(len(violations), 2, violations)  # both gates
+
+    def test_dropping_error_exitcode_is_caught(self) -> None:
+        text = _read(CMAKE_MODULE_PATH)
+        self.assertEqual(cppcheck_gate_violations(text), [])
+        mutated = re.sub(r"\n\s+--error-exitcode=1", "", text, count=1)
+        self.assertNotEqual(mutated, text)
+        violations = cppcheck_gate_violations(mutated)
+        self.assertIn("--error-exitcode=1", " ".join(violations))
+
+    def test_dropping_the_googletest_library_is_caught(self) -> None:
+        """Dropping it silently reverts to 11 unanalyzed test TUs."""
+        text = _read(CMAKE_MODULE_PATH)
+        mutated = re.sub(r"\n\s+--library=googletest", "", text, count=1)
+        self.assertNotEqual(mutated, text)
+        self.assertIn("--library=googletest", " ".join(cppcheck_gate_violations(mutated)))
+
+    def test_reintroducing_the_redundant_suppress_is_caught(self) -> None:
+        text = _read(CMAKE_MODULE_PATH)
+        mutated = text.replace(
+            "        --suppress=missingIncludeSystem",
+            "        --suppress=missingInclude\n        --suppress=missingIncludeSystem",
+            1,
+        )
+        self.assertNotEqual(mutated, text)
+        violations = " ".join(cppcheck_gate_violations(mutated))
+        self.assertIn("missingInclude", violations)
+
+    def test_dropping_a_required_suppression_is_caught(self) -> None:
+        """Dropping one would fail the gate on noise rather than on findings."""
+        text = _read(CMAKE_MODULE_PATH)
+        mutated = re.sub(r"\n\s+--suppress=unmatchedSuppression", "", text, count=1)
+        self.assertNotEqual(mutated, text)
+        self.assertIn("unmatchedSuppression", " ".join(cppcheck_gate_violations(mutated)))
+
+    def test_adding_an_unexpected_suppression_is_caught(self) -> None:
+        """A blanket suppression must not be able to creep in unnoticed."""
+        text = _read(CMAKE_MODULE_PATH)
+        mutated = text.replace(
+            "        --suppress=unmatchedSuppression",
+            "        --suppress=unmatchedSuppression\n        --suppress=useStlAlgorithm",
+            1,
+        )
+        self.assertNotEqual(mutated, text)
+        self.assertIn("useStlAlgorithm", " ".join(cppcheck_gate_violations(mutated)))
 
     def test_dropping_a_result_check_is_caught(self) -> None:
         text = _read(WORKFLOWS_DIR / STATIC_ANALYSIS_WORKFLOW)
