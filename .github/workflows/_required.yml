@@ -190,6 +190,9 @@ jobs:
       - name: Validate merge queue policy and fan-ins
         run: python3 scripts/test-merge-queue-policy.py
 
+      - name: Validate static-analysis placement and gating
+        run: python3 scripts/test-static-analysis-policy.py
+
   deps-version-sync:
     name: deps/version-sync
     runs-on: ubuntu-24.04

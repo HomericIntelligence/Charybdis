@@ -1,5 +1,19 @@
-option(${PROJECT_NAME}_ENABLE_CLANG_TIDY "Enable clang-tidy" ON)
-option(${PROJECT_NAME}_ENABLE_CPPCHECK "Enable cppcheck" ON)
+# Both analyzers default OFF and are enforced solely by the dedicated "Static
+# Analysis" workflow (.github/workflows/static-analysis.yml), whose jobs opt in
+# explicitly with -DCharybdis_ENABLE_<TOOL>=ON.
+#
+# Defaulting them ON meant every configuration that did not opt out re-ran
+# clang-tidy over every translation unit -- the build-test matrix (gcc/clang x
+# debug/release) plus the install, asan/tsan, coverage, codeql, integration-tests
+# and release builds -- while the dedicated clang-tidy job, gated by the required
+# `lint` aggregate, already existed to do exactly that. Same defect class as
+# Agamemnon #515/#516, where the duplicate cost pinned every matrix job at its
+# 30-minute timeout-minutes cap. See #373.
+#
+# scripts/test-static-analysis-policy.py fails if either default flips back, or
+# if a build configuration other than the Static Analysis workflow opts in.
+option(${PROJECT_NAME}_ENABLE_CLANG_TIDY "Run clang-tidy during compilation (opt-in; Static Analysis workflow only)" OFF)
+option(${PROJECT_NAME}_ENABLE_CPPCHECK "Run cppcheck during compilation (opt-in; Static Analysis workflow only)" OFF)
 option(CHARYBDIS_CLANGTIDY_ALLOW_BROKEN_SYSROOT
        "When ON, downgrade conda sysroot probe failures from FATAL_ERROR to WARNING (see issue #84)"
        OFF)

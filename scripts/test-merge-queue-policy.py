@@ -969,7 +969,11 @@ class MergeQueuePolicyTests(unittest.TestCase):
 
     def test_aggregate_fan_ins_have_explicit_result_backed_contracts(self) -> None:
         expected = {
-            "lint": ("static-analysis.yml", "lint", "[clang-format, clang-tidy, action-pins, markdown-lint]"),
+            "lint": (
+                "static-analysis.yml",
+                "lint",
+                "[clang-format, clang-tidy, cppcheck, action-pins, markdown-lint]",
+            ),
             "package": ("container.yml", "package", "[docker]"),
         }
 
