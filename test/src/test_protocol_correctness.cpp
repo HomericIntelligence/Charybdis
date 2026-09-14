@@ -8,6 +8,7 @@
 #include "charybdis/http_test_client.hpp"
 #include "charybdis/test_helpers.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -105,13 +106,15 @@ TEST_F(ProtocolCorrectnessTest, TaskStateOnlyPendingOrCompleted) {
       [&]() {
         [[maybe_unused]] auto [ts, tasks] = client_->get("/v1/tasks");
         (void)ts;
-        for (const auto& task : tasks.value("tasks", nlohmann::json::array())) {
-          if (task.value("id", "") == task_id) {
-            observed_states.insert(task.value("status", "unknown"));
-            return task.value("status", "") == "completed";
-          }
+        const auto& task_list = tasks.value("tasks", nlohmann::json::array());
+        const auto it = std::find_if(task_list.begin(), task_list.end(), [&](const auto& task) {
+          return task.value("id", "") == task_id;
+        });
+        if (it == task_list.end()) {
+          return false;
         }
-        return false;
+        observed_states.insert(it->value("status", "unknown"));
+        return it->value("status", "") == "completed";
       },
       std::chrono::seconds{30});
 

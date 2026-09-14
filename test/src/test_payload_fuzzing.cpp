@@ -11,6 +11,7 @@
 #include "charybdis/http_test_client.hpp"
 #include "charybdis/test_helpers.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <random>
@@ -44,9 +45,8 @@ TEST_F(PayloadFuzzingTest, E05RandomByteStrings) {
   for (int i = 0; i < 50; ++i) {
     // NOLINTNEXTLINE(bugprone-unused-local-non-trivial-variable)
     std::string payload(100, '\0');
-    for (auto& chr : payload) {
-      chr = static_cast<char>(dist(gen));
-    }
+    // Exactly 100 draws from `gen`, in order, preserving the deterministic seed.
+    std::generate(payload.begin(), payload.end(), [&] { return static_cast<char>(dist(gen)); });
 
     auto [status, body] = client_->post_raw("/v1/agents", payload);
     // Any non-5xx response is acceptable (400, 422, etc.)

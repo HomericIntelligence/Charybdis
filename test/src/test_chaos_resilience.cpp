@@ -235,12 +235,11 @@ TEST_F(ChaosResilienceTest, R04QueueStarveConsumerStalls) {
       [&]() {
         [[maybe_unused]] auto [ts2, tasks] = client_->get("/v1/tasks");
         (void)ts2;
-        for (const auto& task : tasks.value("tasks", nlohmann::json::array())) {
-          if (task.value("id", "") == task_id) {
-            return task.value("status", "pending") != "pending";
-          }
-        }
-        return false;
+        const auto& task_list = tasks.value("tasks", nlohmann::json::array());
+        const auto it = std::find_if(task_list.begin(), task_list.end(), [&](const auto& task) {
+          return task.value("id", "") == task_id;
+        });
+        return it != task_list.end() && it->value("status", "pending") != "pending";
       },
       std::chrono::seconds{3});
   EXPECT_FALSE(advanced_while_starved) << "Task should remain pending while queue is starved";
@@ -253,12 +252,11 @@ TEST_F(ChaosResilienceTest, R04QueueStarveConsumerStalls) {
       [&]() {
         [[maybe_unused]] auto [ts3, tasks] = client_->get("/v1/tasks");
         (void)ts3;
-        for (const auto& task : tasks.value("tasks", nlohmann::json::array())) {
-          if (task.value("id", "") == task_id) {
-            return task.value("status", "") == "completed";
-          }
-        }
-        return false;
+        const auto& task_list = tasks.value("tasks", nlohmann::json::array());
+        const auto it = std::find_if(task_list.begin(), task_list.end(), [&](const auto& task) {
+          return task.value("id", "") == task_id;
+        });
+        return it != task_list.end() && it->value("status", "") == "completed";
       },
       std::chrono::seconds{10});
   EXPECT_TRUE(completed) << "Task did not complete within 10s after removing queue-starve fault";
