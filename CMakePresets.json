@@ -97,14 +97,14 @@
       "name": "asan",
       "configurePreset": "asan",
       "output": {"outputOnFailure": true},
-      "execution": {"timeout": 600},
+      "execution": {"timeout": 600, "stopOnFailure": true},
       "filter": {"exclude": {"label": "REQUIRES_NATS"}}
     },
     {
       "name": "tsan",
       "configurePreset": "tsan",
       "output": {"outputOnFailure": true},
-      "execution": {"timeout": 600},
+      "execution": {"timeout": 600, "stopOnFailure": true},
       "filter": {"exclude": {"label": "REQUIRES_NATS"}}
     },
     {
