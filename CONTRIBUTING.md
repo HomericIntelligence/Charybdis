@@ -350,6 +350,18 @@ PRs must pass these required checks before merge:
   token stay green — the pip-audit/Trivy gates still enforce CVE coverage.
 - **Container build + Trivy scan** — `container.yml` and the `release.yml` Trivy gate.
 
+#### Preset → workflow mapping
+
+| Preset    | Workflow                              | Notes                                            |
+|-----------|---------------------------------------|--------------------------------------------------|
+| `debug`   | `.github/workflows/build-test.yml`    | gcc + clang, fast PR feedback                    |
+| `release` | `.github/workflows/build-test.yml`    | gcc + clang                                      |
+| `asan`    | `.github/workflows/sanitizers.yml`    | gcc only; needs libasan8/libubsan1; 600s timeout |
+| `tsan`    | `.github/workflows/sanitizers.yml`    | gcc only; uses `tsan.supp`                       |
+
+The `asan` and `tsan` presets are intentionally **not** in the `build-test.yml`
+matrix — see issue #60 for the decision record.
+
 ## Release Process
 
 Releases are cut from `main` by tagging a semver `vX.Y.Z` tag. The release workflow
