@@ -67,6 +67,20 @@ struct CircuitBreakerConfig {
   int success_threshold = 2;  // consecutive HALF_OPEN successes required to close
 };
 
+namespace detail {
+
+/// Parse a decimal port string via std::stoi, rethrowing parse failures as
+/// std::runtime_error with an "HttpTestClient:" prefix.
+///
+/// Invariant (issue #138): when called from the HttpTestClient constructor the
+/// argument is a `(\d+)` regex capture and is therefore digits-only, so the
+/// std::invalid_argument branch is unreachable from that call site. The catch
+/// is retained as a defensive measure because this function is directly
+/// callable (and unit-tested) with arbitrary strings.
+[[nodiscard]] int parse_port(const std::string& port_str);
+
+}  // namespace detail
+
 /// Thin HTTP client for chaos/resilience GTest tests.
 /// Wraps cpp-httplib for REST API interactions with Agamemnon.
 ///
