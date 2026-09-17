@@ -151,6 +151,11 @@ class HttpTestClient {
   /// The pointer must not be used to mutate `client_`'s ownership.
   [[nodiscard]] const httplib::Client* test_client_ptr() const { return client_.get(); }
 
+  /// Test-only accessors for the parsed host/port (issue #137). Let unit tests
+  /// assert URL-parsing results deterministically, without a live connection.
+  [[nodiscard]] const std::string& test_host() const { return host_; }
+  [[nodiscard]] int test_port() const { return port_; }
+
   /// Test-only circuit-breaker state. CLOSED is the normal pass-through state.
   enum class BreakerState : std::uint8_t { kClosed, kOpen, kHalfOpen };
 
