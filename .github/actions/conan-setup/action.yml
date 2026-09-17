@@ -1,0 +1,24 @@
+name: Conan Setup
+description: Install Conan via pip and detect the default profile
+
+inputs:
+  show_profile:
+    description: When true, additionally run conan profile show after detection
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Install Conan
+      shell: bash
+      run: pip3 install --user conan
+
+    - name: Detect Conan profile
+      shell: bash
+      run: conan profile detect --force
+
+    - name: Show Conan profile
+      shell: bash
+      if: inputs.show_profile == 'true'
+      run: conan profile show

@@ -28,10 +28,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build python3 python3-pip
-          pip3 install --user conan
 
-      - name: Configure Conan
-        run: conan profile detect --force
+      - name: Set up Conan
+        uses: ./.github/actions/conan-setup
 
       - name: Install Conan dependencies (gcc/release)
         run: |
