@@ -30,16 +30,45 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y ninja-build python3-pip
 
+      # The whole Conan/CMake primary build path is treated as a single failable
+      # unit (#125). Each step records success/failure into a step output and
+      # emits a ::warning:: annotation instead of failing the job outright; the
+      # `Fail if no build path produced traces` guard at the end of the job
+      # turns a total failure (primary AND autobuild) into a hard red failure.
+      # NOTE: this repo's forbid-continue-on-error guard (.pre-commit-config.yaml)
+      # bans literal `continue-on-error: true`, hence the explicit bookkeeping.
       - name: Install Conan
-        run: pip3 install conan
+        id: pip_install_conan
+        run: |
+          if pip3 install conan; then
+            echo "outcome=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome=failure" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Install Conan failed::pip install failed — CodeQL will use autobuild fallback."
+          fi
 
       - name: Configure Conan profile
+        id: conan_profile
+        if: steps.pip_install_conan.outputs.outcome == 'success'
         run: |
-          conan profile detect --force
-          conan profile show
+          if conan profile detect --force && conan profile show; then
+            echo "outcome=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome=failure" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Configure Conan profile failed::profile detect failed — CodeQL will use autobuild."
+          fi
 
       - name: Install Conan dependencies
-        run: conan install . --output-folder=build/ci --build=missing --lockfile=conan.lock -s build_type=Release
+        id: conan_install
+        if: steps.conan_profile.outputs.outcome == 'success'
+        run: |
+          if conan install . --output-folder=build/ci --build=missing \
+             --lockfile=conan.lock -s build_type=Release; then
+            echo "outcome=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome=failure" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Conan install failed::dependency resolve failed — CodeQL will use autobuild."
+          fi
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@e0647621c2984b5ed2f768cb892365bf2a616ad1  # v4.37.2
@@ -48,15 +77,66 @@ jobs:
           config-file: ./.github/codeql/codeql-config.yml
 
       - name: Build (CodeQL traces the build)
+        id: explicit_build
+        if: steps.conan_install.outputs.outcome == 'success'
         run: |
-          cmake --preset ci -DCMAKE_TOOLCHAIN_FILE=build/ci/conan_toolchain.cmake
-          cmake --build --preset ci
+          if cmake --preset ci -DCMAKE_TOOLCHAIN_FILE=build/ci/conan_toolchain.cmake \
+             && cmake --build --preset ci; then
+            echo "outcome=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome=failure" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Build failed::cmake configure/build failed — CodeQL will fall back to autobuild."
+          fi
+
+      - name: Determine primary build status
+        id: status
+        if: always()
+        env:
+          PIP_OUTCOME: ${{ steps.pip_install_conan.outputs.outcome }}
+          PROFILE_OUTCOME: ${{ steps.conan_profile.outputs.outcome }}
+          CONAN_OUTCOME: ${{ steps.conan_install.outputs.outcome }}
+          BUILD_OUTCOME: ${{ steps.explicit_build.outputs.outcome }}
+        run: |
+          set -euo pipefail
+          if [[ "$PIP_OUTCOME" == "success" \
+             && "$PROFILE_OUTCOME" == "success" \
+             && "$CONAN_OUTCOME" == "success" \
+             && "$BUILD_OUTCOME" == "success" ]]; then
+            echo "primary_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "primary_ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=CodeQL primary build failed::Falling back to autobuild. pip=${PIP_OUTCOME:-skipped}"
+            echo "profile=${PROFILE_OUTCOME:-skipped} conan=${CONAN_OUTCOME:-skipped}"
+          fi
+
+      - name: CodeQL Autobuild (fallback)
+        id: autobuild
+        if: steps.status.outputs.primary_ok != 'true'
+        uses: github/codeql-action/autobuild@e0647621c2984b5ed2f768cb892365bf2a616ad1  # v4.37.2
 
       - name: Perform CodeQL Analysis
         if: github.event_name != 'merge_group'
         uses: github/codeql-action/analyze@e0647621c2984b5ed2f768cb892365bf2a616ad1  # v4.37.2
         with:
           category: /language:cpp
+
+      - name: Fail if no build path produced traces
+        if: always()
+        env:
+          PRIMARY_OK: ${{ steps.status.outputs.primary_ok }}
+          AUTOBUILD_OUTCOME: ${{ steps.autobuild.outcome }}
+        run: |
+          set -euo pipefail
+          if [[ "$PRIMARY_OK" == "true" ]]; then
+            exit 0
+          fi
+          if [[ "$AUTOBUILD_OUTCOME" == "success" ]]; then
+            echo "::warning title=CodeQL ran in degraded mode::Primary build failed; autobuild produced traces."
+            exit 0
+          fi
+          echo "::error title=CodeQL build failed::Neither explicit build nor autobuild produced traces."
+          echo "primary_ok=${PRIMARY_OK}, autobuild=${AUTOBUILD_OUTCOME:-skipped}"
+          exit 1
 
       - name: Upload SARIF to GitHub Security tab
         if: hashFiles('results.sarif') != '' && github.event_name != 'merge_group'
