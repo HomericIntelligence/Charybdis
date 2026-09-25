@@ -26,8 +26,8 @@ Charybdis processes only the metadata necessary to inject and validate chaos fau
 | Chaos API requests | Agamemnon REST API (`POST /v1/chaos/*`) | Loopback or internal Tailscale mesh only; never routed to the public internet |
 | Fault metadata responses | In-process test assertions | Not persisted beyond the test run |
 | Task routing validation | NATS JetStream (`hi.myrmidon.hello.*`) | Subject names only; message bodies are synthetic fixtures |
-| Resilience metrics | NATS JetStream (`hi.logs.>`) → Argus/Prometheus | Retention governed by the Argus configuration in ProjectArgus |
-| Test output (stdout/stderr) | Local ctest output / CI logs | Ephemeral per test run; on integration-test failure, ctest's `LastTest.log` is uploaded as the `ctest-logs` GitHub Actions artifact (7-day retention). Failure messages describe payloads by length only (`payload(len=N)` via `describe_payload()` in `include/charybdis/test_helpers.hpp`) — never payload content |
+| Resilience metrics | NATS JetStream (`hi.logs.>`) → Argus/Prometheus | Retention governed by the Argus configuration in Argus |
+| Test output (stdout/stderr) | Local ctest output / CI logs | Ephemeral per test run; CI logs are subject to the GitHub Actions log retention policy |
 
 ## What Is Never Collected
 
@@ -53,9 +53,9 @@ Charybdis explicitly does not collect, log, or transmit:
   HomericIntelligence organisation (default: 90 days). Logs contain fault parameters and
   pass/fail outcomes, not payload content.
 - **Resilience metrics (`hi.logs.>`)** — retention is governed by the Argus stream
-  configuration in ProjectArgus. Charybdis has no control over downstream retention.
+  configuration in Argus. Charybdis has no control over downstream retention.
   The authoritative configuration lives in
-  [`HomericIntelligence/ProjectArgus`](https://github.com/HomericIntelligence/ProjectArgus)
+  [`HomericIntelligence/Argus`](https://github.com/HomericIntelligence/Argus)
   under `configs/jetstream/` (stream name: `HI_LOGS`, subject filter: `hi.logs.>`).
   Operators verifying compliance should consult that repo for the current
   `MaxAge` / `MaxBytes` / `Discard` policy and the stream's owner team. If the
