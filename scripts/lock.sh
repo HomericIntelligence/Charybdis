@@ -3,6 +3,13 @@ set -euo pipefail
 
 # Regenerate conan.lock using the canonical GCC-14/Debug/Linux/x86_64 profile
 # and show any diff against the committed lockfile.
+#
+# The GCC-14/Debug profile is the canonical generation profile because Conan 2.x
+# lockfiles are dependency-graph-level: they pin recipe revisions, which are
+# compiler-agnostic. The result is therefore valid for all compilers, including
+# the Clang CI legs in build-test.yml. Never hand-generate a "Clang lockfile";
+# CI's lockfile-integrity job asserts that a Clang-settings resolution matches
+# this file byte-for-byte.
 
 # Canonical CI profile. .github/workflows/lock-check.yml runs on
 # ubuntu-24.04 (Linux/x86_64); a lockfile generated against any other
