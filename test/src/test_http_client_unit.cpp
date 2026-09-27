@@ -28,21 +28,57 @@ namespace charybdis {
 TEST(HttpTestClientUnit, ValidUrlParsingRefused) {
   // Port 1 gives immediate ECONNREFUSED — exercises the parsed-URL code path.
   HttpTestClient client("http://127.0.0.1:1");
+  EXPECT_EQ(client.test_host(), "127.0.0.1");
+  EXPECT_EQ(client.test_port(), 1);
   EXPECT_FALSE(client.is_healthy());
 }
 
-TEST(HttpTestClientUnit, MalformedUrlFallsBackToDefaults) {
-  // A URL that doesn't match the regex exercises the else branch in the
-  // constructor. Falls back to host=localhost, port=8080.
-  // On a CI runner nothing listens on 8080, so is_healthy() returns false.
-  HttpTestClient client("not-a-url");
-  EXPECT_FALSE(client.is_healthy());
+TEST(HttpTestClientUnit, NonHttpStringFallsBackToDefaults) {
+  // A string with no http(s):// scheme keeps the legacy fallback contract.
+  const HttpTestClient client("not-a-url");
+  EXPECT_EQ(client.test_host(), "localhost");
+  EXPECT_EQ(client.test_port(), 8080);
 }
 
 TEST(HttpTestClientUnit, HttpsUrlParsing) {
   // The regex also handles https://; port 1 gives immediate refusal.
   HttpTestClient client("https://127.0.0.1:1");
+  EXPECT_EQ(client.test_host(), "127.0.0.1");
+  EXPECT_EQ(client.test_port(), 1);
   EXPECT_FALSE(client.is_healthy());
+}
+
+TEST(HttpTestClientUnit, NoPortHttpDefaultsTo80) {
+  const HttpTestClient client("http://example.test");
+  EXPECT_EQ(client.test_host(), "example.test");
+  EXPECT_EQ(client.test_port(), 80);
+}
+
+TEST(HttpTestClientUnit, NoPortHttpsDefaultsTo443) {
+  const HttpTestClient client("https://example.test");
+  EXPECT_EQ(client.test_host(), "example.test");
+  EXPECT_EQ(client.test_port(), 443);
+}
+
+TEST(HttpTestClientUnit, NoPortWithPathDefaultsTo80) {
+  // The motivating example from issue #137: previously fell back to
+  // localhost:8080 silently.
+  const HttpTestClient client("http://example.test/some/path?q=1");
+  EXPECT_EQ(client.test_host(), "example.test");
+  EXPECT_EQ(client.test_port(), 80);
+}
+
+TEST(HttpTestClientUnit, ExplicitPortWithPathParses) {
+  const HttpTestClient client("http://example.test:9090/health");
+  EXPECT_EQ(client.test_host(), "example.test");
+  EXPECT_EQ(client.test_port(), 9090);
+}
+
+TEST(HttpTestClientUnit, MalformedHttpUrlThrows) {
+  // HTTP-looking but unparseable URLs must throw, not silently fall back.
+  EXPECT_THROW((void)HttpTestClient("http://"), std::runtime_error);
+  EXPECT_THROW((void)HttpTestClient("http://:8080"), std::runtime_error);
+  EXPECT_THROW((void)HttpTestClient("https://"), std::runtime_error);
 }
 
 TEST(HttpTestClientUnit, OutOfRangePortThrows) {
