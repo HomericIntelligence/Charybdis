@@ -13,7 +13,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <string>
-#include <string_view>
+#include <unordered_set>
 
 #include <gtest/gtest.h>
 
@@ -147,6 +147,46 @@ TEST(TestHelpersUnit, WaitUntilReturnsTrueAfterDelay) {
       std::chrono::seconds{5});
   EXPECT_TRUE(result);
   EXPECT_GE(count, 3);
+}
+
+TEST(TestHelpersUnit, LatencyProbePostPathDefault) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::unsetenv("CHAOS_LATENCY_PROBE_POST_PATH");
+  EXPECT_EQ(latency_probe_post_path(), "/v1/teams");
+}
+
+TEST(TestHelpersUnit, LatencyProbePostPathRespectsOverride) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::setenv("CHAOS_LATENCY_PROBE_POST_PATH", "/v1/chaos/latency/probe", 1);
+  EXPECT_EQ(latency_probe_post_path(), "/v1/chaos/latency/probe");
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::unsetenv("CHAOS_LATENCY_PROBE_POST_PATH");
+}
+
+TEST(TestHelpersUnit, LatencyProbePostPathEmptyEnvFallsBackToDefault) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::setenv("CHAOS_LATENCY_PROBE_POST_PATH", "", 1);
+  EXPECT_EQ(latency_probe_post_path(), "/v1/teams");
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::unsetenv("CHAOS_LATENCY_PROBE_POST_PATH");
+}
+
+TEST(TestHelpersUnit, UniqueRequestTagNeverCollidesBackToBack) {
+  // Direct mitigation for the random_suffix() collision risk flagged in #95.
+  // 10k back-to-back calls must all be distinct.
+  std::unordered_set<std::string> seen;
+  for (int i = 0; i < 10000; ++i) {
+    const auto tag = unique_request_tag("test");
+    ASSERT_TRUE(seen.insert(tag).second) << "collision at i=" << i << " tag=" << tag;
+  }
+}
+
+TEST(TestHelpersUnit, AgamemnonUrlEmptyEnvFallsBackToDefault) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::setenv("AGAMEMNON_URL", "", 1);
+  EXPECT_EQ(agamemnon_url(), "http://localhost:8080");
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
+  ::unsetenv("AGAMEMNON_URL");
 }
 
 }  // namespace charybdis
