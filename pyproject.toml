@@ -34,7 +34,7 @@ dev = [
     # (scripts/test-container-attestation.py). Declared explicitly rather than
     # relying on the transitive copy pulled in by pre-commit.
     "pyyaml>=6.0,<7",
-    "types-pyyaml>=6.0,<7",
+    "types-pyyaml>=6.0.12.20260906,<7",
 ]
 
 [tool.uv]
