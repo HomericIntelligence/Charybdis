@@ -21,9 +21,9 @@ dependencies = []
 # `cxx-compiler` and `clang-tools` (clang-tidy/clang-format) are NOT here —
 # they are provided by the system toolchain (apt / devcontainer), per ADR-018.
 dev = [
-    "cmake>=4.4.2",
-    "ninja>=1.11",
-    "conan>=2.31.2",
+    "cmake>=4.4.3",
+    "ninja>=1.13.2",
+    "conan>=2.32.0",
     "gcovr>=7",
     "pre-commit>=4.6.2",
     # Typechecks conanfile.py (only Python in the repo).
