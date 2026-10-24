@@ -17,6 +17,7 @@
 #include <nlohmann/json.hpp>
 #include <ranges>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <gtest/gtest.h>
