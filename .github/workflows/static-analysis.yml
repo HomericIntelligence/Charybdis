@@ -77,6 +77,21 @@ jobs:
       - name: "Verify Dockerfile install prefix stays inside builder WORKDIR"
         run: ./scripts/check-docker-install-prefix.sh Dockerfile
 
+  forbid-using-namespace:
+    name: forbid-using-namespace-charybdis
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: "Reject `using namespace projectcharybdis;` in test/"
+        run: |
+          set -e
+          if grep -rnE '^[[:space:]]*using[[:space:]]+namespace[[:space:]]+charybdis[[:space:]]*;' test/ \
+              --include='*.cpp' --include='*.hpp' --include='*.h'; then
+            echo "::error::Use projectcharybdis:: qualification or a namespace block. See #186."
+            exit 1
+          fi
+          echo "ok: no banned using namespace charybdis; in test/"
+
   markdown-lint:
     name: markdown-lint
     runs-on: ubuntu-24.04
@@ -90,7 +105,7 @@ jobs:
   lint:
     name: lint
     runs-on: ubuntu-24.04
-    needs: [clang-format, clang-tidy, cppcheck, action-pins, markdown-lint]
+    needs: [clang-format, clang-tidy, cppcheck, action-pins, markdown-lint, forbid-using-namespace]
     if: always()
     steps:
       - name: Check static analysis results
@@ -100,12 +115,14 @@ jobs:
           R_CPPCHECK: ${{ needs.cppcheck.result }}
           R_PINS: ${{ needs.action-pins.result }}
           R_MD: ${{ needs.markdown-lint.result }}
+          R_NS: ${{ needs.forbid-using-namespace.result }}
         run: |
           if [ "${R_FMT}" != "success" ] || \
              [ "${R_TIDY}" != "success" ] || \
              [ "${R_CPPCHECK}" != "success" ] || \
              [ "${R_PINS}" != "success" ] || \
-             [ "${R_MD}" != "success" ]; then
+             [ "${R_MD}" != "success" ] || \
+             [ "${R_NS}" != "success" ]; then
             echo "Static analysis failed"
             exit 1
           fi
@@ -114,7 +131,7 @@ jobs:
   check-all:
     name: All Static Analysis Checks
     runs-on: ubuntu-24.04
-    needs: [clang-format, clang-tidy, cppcheck, action-pins, markdown-lint]
+    needs: [clang-format, clang-tidy, cppcheck, action-pins, markdown-lint, forbid-using-namespace]
     if: always()
     steps:
       - name: Check all jobs passed
@@ -124,12 +141,14 @@ jobs:
           R_CPPCHECK: ${{ needs.cppcheck.result }}
           R_PINS: ${{ needs.action-pins.result }}
           R_MD: ${{ needs.markdown-lint.result }}
+          R_NS: ${{ needs.forbid-using-namespace.result }}
         run: |
           if [ "$R_FMT" != "success" ] || \
              [ "$R_TIDY" != "success" ] || \
              [ "$R_CPPCHECK" != "success" ] || \
              [ "$R_PINS" != "success" ] || \
-             [ "$R_MD" != "success" ]; then
+             [ "$R_MD" != "success" ] || \
+             [ "$R_NS" != "success" ]; then
             echo "Static analysis failed"; exit 1
           fi
           echo "All checks passed"
