@@ -159,7 +159,7 @@ HttpTestClient::HttpTestClient(const std::string& base_url, RetryPolicy retry,
                              std::to_string(timeouts_.read_timeout_sec));
   }
   // Parse "http://host:port" into host and port
-  const std::regex url_re(R"(https?://([^:]+):(\d+))");
+  const std::regex url_re(R"(https?://([^:]+):([1-9]\d{0,4}|0))");
   // NOLINTNEXTLINE(misc-const-correctness) — mutated as regex_match output parameter
   std::smatch match = {};
   if (std::regex_match(base_url, match, url_re)) {
