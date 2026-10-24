@@ -62,6 +62,10 @@ static-analysis-policy:
 attestation-policy:
   ./scripts/test-container-attestation.py
 
+# Structural regression tests for branch-protection bypass-actor governance (#101)
+branch-protection-policy:
+  ./scripts/test-branch-protection-policy.py
+
 clean:
   rm -rf build install
 
@@ -73,7 +77,7 @@ clean-deps:
   uv run conan remove "gtest/*" -c
   rm -rf build/debug
 
-ci: merge-queue-policy attestation-policy static-analysis-policy
+ci: merge-queue-policy attestation-policy static-analysis-policy branch-protection-policy
   . scripts/dev-env.sh && uv run cmake --preset ci && uv run cmake --build --preset ci && uv run ctest --preset ci
 
 # === Containerized CI (podman by default) ===
